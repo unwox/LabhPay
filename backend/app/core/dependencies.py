@@ -29,7 +29,7 @@ async def current_user(
             detail="Not authenticated",
         )
     try:
-        return decode_access_token(lp_at)
+        claims = decode_access_token(lp_at)
     except jwt.ExpiredSignatureError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
@@ -38,3 +38,12 @@ async def current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         ) from e
+    # Stage 10: keep an idle-session watchdog warm. The cleanup worker
+    # reads this key to decide when a session has gone quiet long enough
+    # to purge.
+    try:
+        from app.services.activity import bump_last_seen
+        bump_last_seen(claims.sub)
+    except Exception:
+        pass
+    return claims

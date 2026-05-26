@@ -21,6 +21,8 @@ class StatementMeta(BaseModel):
     available_limit: Optional[Decimal] = None
     finance_charges: Optional[Decimal] = None
     gst_on_charges: Optional[Decimal] = None
+    late_fee_charges: Optional[Decimal] = None
+    overlimit_charges: Optional[Decimal] = None
     detection_confidence: float = Field(0.0, ge=0.0, le=1.0)
     ocr_used: bool = False
     pages: int = 0

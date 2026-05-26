@@ -25,6 +25,7 @@ from ai_gateway.pool import KeyPool
 from ai_gateway.providers import (
     GeminiAdapter,
     GrokAdapter,
+    GroqAdapter,
     OpenAIAdapter,
     OpenRouterAdapter,
 )
@@ -82,6 +83,7 @@ class AIGateway:
             "openai": OpenAIAdapter(),
             "gemini": GeminiAdapter(),
             "grok": GrokAdapter(),
+            "groq": GroqAdapter(),
             "openrouter": OpenRouterAdapter(),
         }
         self._slots: dict[str, _Slot] = {

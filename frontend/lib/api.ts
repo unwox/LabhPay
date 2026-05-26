@@ -20,6 +20,14 @@ export class ApiError extends Error {
   }
 }
 
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]+)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 export async function api<T = unknown>(
   path: string,
   init: RequestInit = {}
@@ -29,6 +37,15 @@ export async function api<T = unknown>(
     headers.set("Content-Type", "application/json");
   }
   headers.set("Accept", "application/json");
+
+  // Stage 10: echo the CSRF cookie on cookie-auth mutations.
+  const method = (init.method || "GET").toUpperCase();
+  if (MUTATING.has(method)) {
+    const csrf = readCookie("lp_csrf");
+    if (csrf && !headers.has("X-CSRF-Token")) {
+      headers.set("X-CSRF-Token", csrf);
+    }
+  }
 
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -154,12 +171,19 @@ export type UploadResponse = {
   needs_password: boolean;
 };
 
-export async function uploadStatement(file: File): Promise<UploadResponse> {
+export async function uploadStatement(
+  file: File,
+  opts?: { private?: boolean },
+): Promise<UploadResponse> {
   const fd = new FormData();
   fd.append("file", file);
+  if (opts?.private != null) fd.append("private", String(opts.private));
+  const headers: Record<string, string> = {};
+  const csrf = readCookie("lp_csrf");
+  if (csrf) headers["X-CSRF-Token"] = csrf;
   const res = await fetch(
     `${(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "")}/statements/upload`,
-    { method: "POST", body: fd, credentials: "include" }
+    { method: "POST", body: fd, credentials: "include", headers }
   );
   const text = await res.text();
   const payload = text ? JSON.parse(text) : null;
@@ -210,6 +234,7 @@ export type DashSummary = {
     finance: number;
     gst: number;
     late_fees: number;
+    overlimit: number;
     total: number;
     has_any: boolean;
   };
@@ -242,4 +267,199 @@ export type DashSummary = {
 export function getDashboardSummary(ids?: string[]) {
   const q = ids && ids.length ? `?ids=${encodeURIComponent(ids.join(","))}` : "";
   return api<DashSummary>(`/dashboard/summary${q}`);
+}
+
+// ---- Intelligence (Stage 7) ----
+
+export type InsightCard = {
+  id: string;
+  title: string;
+  body: string;
+  next_step: string;
+  severity: 1 | 2 | 3;
+  confidence: number;
+  category:
+    | "charges"
+    | "recurring"
+    | "utilization"
+    | "anomaly"
+    | "duplicate"
+    | "forex"
+    | "profile_hint";
+  impact_inr: number;
+  beginner_body: string;
+  refs: Record<string, unknown>;
+  is_suspicious: boolean;
+  txn_ids: string[];
+};
+
+export type ProfileTag = {
+  id: string;
+  title: string;
+  body: string;
+  score: number;
+  icon: string;
+};
+
+export type IntelligenceSummary = {
+  insights: InsightCard[];
+  suspicious: InsightCard[];
+  profile_tags: ProfileTag[];
+  generated_at: string;
+  llm_used: boolean;
+};
+
+export function getIntelligenceSummary(opts?: { ids?: string[]; phrase?: boolean }) {
+  const params = new URLSearchParams();
+  if (opts?.ids && opts.ids.length) params.set("ids", opts.ids.join(","));
+  if (opts?.phrase === false) params.set("phrase", "false");
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return api<IntelligenceSummary>(`/intelligence/summary${q}`);
+}
+
+// ---- Assistant (Stage 8) ----
+
+export type AssistantReply = {
+  answer: string;
+  txn_ids_cited: string[];
+  retrieval_count: number;
+  fallback_used: boolean;
+  tier_used: "fast" | "deep" | "none";
+  prompt_version: string;
+  generated_at: string;
+};
+
+export function askAssistant(
+  question: string,
+  opts?: { regenerate?: boolean; ids?: string[] }
+) {
+  return api<AssistantReply>("/assistant/chat", {
+    method: "POST",
+    body: JSON.stringify({
+      question,
+      regenerate: !!opts?.regenerate,
+      ids: opts?.ids && opts.ids.length ? opts.ids.join(",") : null,
+    }),
+  });
+}
+
+export function getAssistantSuggestions(ids?: string[]) {
+  const q = ids && ids.length ? `?ids=${encodeURIComponent(ids.join(","))}` : "";
+  return api<{ suggestions: string[] }>(`/assistant/suggestions${q}`);
+}
+
+// ---- Resolution (Stage 9) ----
+
+export type ResolutionAction = {
+  id: string;
+  label_en: string;
+  label_hi: string;
+  blurb_en: string;
+  blurb_hi: string;
+  recipient: "bank" | "merchant" | "either";
+};
+
+export type ResolutionRecipient = {
+  action_id: string;
+  name: string;
+  kind: "bank" | "merchant" | "unknown";
+  email: string | null;
+  secondary_email: string | null;
+  expected_sla: string | null;
+};
+
+export type ResolutionActionsResp = {
+  txn: {
+    id: string;
+    merchant: string;
+    amount: number;
+    date: string;
+    is_debit: boolean;
+    is_emi: boolean;
+    category: string;
+    has_duplicate: boolean;
+  };
+  actions: ResolutionAction[];
+  recipients: ResolutionRecipient[];
+};
+
+export type ResolutionEmail = {
+  subject: string;
+  body: string;
+  recipient_name: string;
+  recipient_kind: "bank" | "merchant" | "unknown";
+  recipient_email: string | null;
+  secondary_email: string | null;
+  expected_sla: string | null;
+  action_id: string;
+  language: "en" | "hi";
+  notes: string[];
+};
+
+export function getResolutionActions(jobId: string, txnId: string) {
+  return api<ResolutionActionsResp>(`/resolution/actions/${jobId}/${txnId}`);
+}
+
+export function draftResolutionEmail(args: {
+  job_id: string;
+  txn_id: string;
+  action_id: string;
+  language: "en" | "hi";
+}) {
+  return api<ResolutionEmail>("/resolution/email", {
+    method: "POST",
+    body: JSON.stringify(args),
+  });
+}
+
+// ---- Exports (Stage 9) ----
+
+export type ExportKind = "summary" | "yearly" | "categories" | "subscriptions" | "tax-summary";
+
+export type ExportListItem = {
+  kind: ExportKind;
+  title: string;
+  blurb: string;
+};
+
+export function listExports() {
+  return api<{ exports: ExportListItem[] }>("/exports/");
+}
+
+export function exportUrl(kind: ExportKind, ids?: string[]): string {
+  const base =
+    (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
+  const q = ids && ids.length ? `?ids=${encodeURIComponent(ids.join(","))}` : "";
+  return `${base}/exports/${kind}.pdf${q}`;
+}
+
+export async function downloadExport(kind: ExportKind, ids?: string[]): Promise<void> {
+  const res = await fetch(exportUrl(kind, ids), {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let detail = `Download failed (${res.status})`;
+    try {
+      const t = await res.text();
+      const j = JSON.parse(t);
+      if (j?.detail) detail = j.detail;
+    } catch {
+      /* keep default */
+    }
+    throw new ApiError(res.status, detail);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition") || "";
+  const m = /filename="([^"]+)"/i.exec(cd);
+  const filename = m?.[1] || `labhpay-${kind}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

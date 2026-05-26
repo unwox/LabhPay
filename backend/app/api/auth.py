@@ -18,6 +18,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
+from app.core.csrf import CSRF_COOKIE, set_csrf_cookie
 from app.core.dependencies import current_user, get_client_ip
 from app.core.security import (
     AccessClaims,
@@ -36,6 +37,8 @@ from app.services.otp import (
     verify_otp,
 )
 from app.services.phone import InvalidPhoneError, normalize_indian_mobile
+from app.services.storage import purge_user_session
+from utils.audit import emit as audit_emit, hash_user_id
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -75,6 +78,8 @@ def _user_out(u: User) -> UserOut:
 def _set_session_cookies(response: Response, *, access_token: str, refresh_token: str) -> None:
     response.set_cookie(value=access_token, **access_cookie_kwargs())
     response.set_cookie(value=refresh_token, **refresh_cookie_kwargs())
+    a = access_cookie_kwargs()
+    set_csrf_cookie(response, secure=a["secure"], samesite=a["samesite"])
 
 
 def _clear_session_cookies(response: Response) -> None:
@@ -82,6 +87,7 @@ def _clear_session_cookies(response: Response) -> None:
     r = refresh_cookie_kwargs()
     response.delete_cookie(key=a["key"], path=a["path"])
     response.delete_cookie(key=r["key"], path=r["path"])
+    response.delete_cookie(key=CSRF_COOKIE, path="/")
 
 
 def _issue_session(response: Response, user: User) -> tuple[str, str]:
@@ -136,6 +142,7 @@ def verify_otp_route(body: VerifyOtpBody, response: Response) -> dict:
     user = store.upsert_by_phone(phone)
     store.touch_login(user.id)
     _issue_session(response, user)
+    audit_emit("auth.login", user=hash_user_id(user.id))
     return {"ok": True, "user": _user_out(user).model_dump()}
 
 
@@ -167,21 +174,37 @@ def logout(
     lp_at: Annotated[str | None, Cookie()] = None,
     lp_rt: Annotated[str | None, Cookie()] = None,
 ) -> dict:
-    # Best-effort: revoke this user's refresh tokens. We don't require valid access
-    # token for logout, but if we can decode it we'll purge that user's refresh set.
+    # Best-effort: revoke this user's refresh tokens *and* purge every Redis
+    # key under sess:{uid}:* so no statement bytes, derived results, or
+    # rate-limit counters survive the sign-out. This is the explicit Stage 10
+    # verify gate: "Logout → all session keys gone from Redis."
+    purged_user_id: str | None = None
     if lp_at:
         try:
             from app.core.security import decode_access_token
             c = decode_access_token(lp_at)
-            get_user_store().purge_user_refresh(c.sub)
+            purged_user_id = c.sub
         except Exception:
             pass
-    elif lp_rt:
+    if purged_user_id is None and lp_rt:
         try:
             store = get_user_store()
             found = store.find_refresh(hash_refresh_token(lp_rt))
             if found:
-                store.purge_user_refresh(found[1])
+                purged_user_id = found[1]
+        except Exception:
+            pass
+    if purged_user_id:
+        try:
+            get_user_store().purge_user_refresh(purged_user_id)
+        except Exception:
+            pass
+        try:
+            purge_user_session(purged_user_id)
+        except Exception:
+            pass
+        try:
+            audit_emit("auth.logout", user=hash_user_id(purged_user_id))
         except Exception:
             pass
     _clear_session_cookies(response)

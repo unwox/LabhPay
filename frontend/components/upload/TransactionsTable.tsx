@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { ShieldAlert } from "lucide-react";
 import type { ApiTxn, ApiStatementMeta } from "@/lib/api";
+import { ResolutionModal } from "@/components/resolution/ResolutionModal";
 
 function inr(amt: string | null): string {
   if (amt == null) return "—";
@@ -53,7 +55,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function TransactionsTable({ txns }: { txns: ApiTxn[] }) {
+export function TransactionsTable({
+  txns,
+  jobId,
+}: {
+  txns: ApiTxn[];
+  jobId?: string;
+}) {
+  const [openTxn, setOpenTxn] = React.useState<string | null>(null);
   if (!txns.length) {
     return (
       <p className="text-ink-muted text-sm">
@@ -63,41 +72,64 @@ export function TransactionsTable({ txns }: { txns: ApiTxn[] }) {
     );
   }
   return (
-    <div className="rounded-2xl bg-paper-card shadow-card overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-paper-warm/60 text-ink-muted">
-          <tr>
-            <th className="text-left font-normal px-5 py-3">Date</th>
-            <th className="text-left font-normal px-5 py-3">Merchant</th>
-            <th className="text-left font-normal px-5 py-3 hidden md:table-cell">Category</th>
-            <th className="text-right font-normal px-5 py-3">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {txns.map((t) => (
-            <tr key={t.id} className="border-t border-ink/6">
-              <td className="px-5 py-3 text-ink-muted whitespace-nowrap">
-                {fmtDate(t.txn_date)}
-              </td>
-              <td className="px-5 py-3 text-ink">
-                {t.merchant_norm || t.merchant_raw}
-              </td>
-              <td className="px-5 py-3 hidden md:table-cell">
-                <span className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                  {t.category}
-                </span>
-              </td>
-              <td
-                className={`px-5 py-3 text-right font-display ${
-                  t.is_debit ? "text-ink" : "text-accent-ink"
-                }`}
-              >
-                {t.is_debit ? "" : "+ "}{inr(t.amount)}
-              </td>
+    <>
+      <div className="rounded-2xl bg-paper-card shadow-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-paper-warm/60 text-ink-muted">
+            <tr>
+              <th className="text-left font-normal px-5 py-3">Date</th>
+              <th className="text-left font-normal px-5 py-3">Merchant</th>
+              <th className="text-left font-normal px-5 py-3 hidden md:table-cell">Category</th>
+              <th className="text-right font-normal px-5 py-3">Amount</th>
+              {jobId ? <th className="px-5 py-3" /> : null}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {txns.map((t) => (
+              <tr key={t.id} className="border-t border-ink/6">
+                <td className="px-5 py-3 text-ink-muted whitespace-nowrap">
+                  {fmtDate(t.txn_date)}
+                </td>
+                <td className="px-5 py-3 text-ink">
+                  {t.merchant_norm || t.merchant_raw}
+                </td>
+                <td className="px-5 py-3 hidden md:table-cell">
+                  <span className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
+                    {t.category}
+                  </span>
+                </td>
+                <td
+                  className={`px-5 py-3 text-right font-display ${
+                    t.is_debit ? "text-ink" : "text-accent-ink"
+                  }`}
+                >
+                  {t.is_debit ? "" : "+ "}{inr(t.amount)}
+                </td>
+                {jobId ? (
+                  <td className="px-3 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setOpenTxn(t.id)}
+                      className="inline-flex items-center gap-1 text-[12px] text-ink-muted hover:text-ink"
+                      aria-label="Open Resolution Assistant"
+                    >
+                      <ShieldAlert size={12} /> Resolve
+                    </button>
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {jobId && openTxn ? (
+        <ResolutionModal
+          jobId={jobId}
+          txnId={openTxn}
+          open={!!openTxn}
+          onClose={() => setOpenTxn(null)}
+        />
+      ) : null}
+    </>
   );
 }

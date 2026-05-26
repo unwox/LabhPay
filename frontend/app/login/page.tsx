@@ -11,7 +11,23 @@ import { useAuth } from "@/lib/auth-context";
 
 type Step = { kind: "phone" } | { kind: "otp"; phone: string; expiresInMinutes: number };
 
+// useSearchParams() bails out of static prerendering — wrap the inner UI
+// in a Suspense boundary so the page can be statically generated.
 export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <main className="min-h-screen grid place-items-center">
+          <p className="text-ink-muted text-sm">Loading…</p>
+        </main>
+      }
+    >
+      <LoginInner />
+    </React.Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";

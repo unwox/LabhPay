@@ -110,6 +110,16 @@ def pdf_extract(self, *, user_id: str, job_id: str) -> dict:
         emit(JobStage.CATEGORIZING, 0.85, "Tagging transactions",
              bank_id=parser.bank_id, bank_display=parser.display_name)
         statement.transactions = categorize_transactions(statement.transactions)
+        # Stage 7: LLM fallback for transactions the rules couldn't classify.
+        # Silent no-op if disabled, budget exceeded, or all providers down.
+        try:
+            from app.services.categorizer_llm import llm_fallback_categorize
+            statement.transactions = llm_fallback_categorize(
+                statement.transactions, user_id=user_id
+            )
+        except Exception:
+            # Fallback layer must never break the deterministic pipeline.
+            pass
         statement.meta.pages = result.pages
         statement.meta.ocr_used = result.ocr_used
         statement.meta.detection_confidence = max(conf, statement.meta.detection_confidence)
@@ -118,6 +128,14 @@ def pdf_extract(self, *, user_id: str, job_id: str) -> dict:
 
         # Privacy: delete the encrypted PDF as soon as extraction is done.
         delete_pdf(user_id=user_id, job_id=job_id)
+
+        # Stage 10: stamp the Private Mode grace timer (no-op if the upload
+        # wasn't in private mode).
+        try:
+            from app.services.private_mode import mark_analysis_done
+            mark_analysis_done(user_id=user_id, job_id=job_id)
+        except Exception:
+            pass
 
         emit(JobStage.DONE, 1.0, "Ready",
              bank_id=parser.bank_id, bank_display=parser.display_name)

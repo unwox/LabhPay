@@ -23,6 +23,8 @@ from pydantic import BaseModel, Field
 from app.core.config import get_settings
 from app.core.dependencies import current_user
 from app.core.security import AccessClaims
+from app.db.users import get_user_store
+from app.services.private_mode import mark_private
 from app.services.storage import (
     delete_pdf,
     fetch_filename,
@@ -34,6 +36,7 @@ from app.services.storage import (
     store_pdf,
 )
 from shared.schemas import JobResult, JobStage, JobStatus
+from utils.audit import emit as audit_emit, hash_user_id
 from utils.pdf_extract import is_password_protected
 
 router = APIRouter(prefix="/statements", tags=["statements"])
@@ -71,6 +74,10 @@ class PasswordBody(BaseModel):
 async def upload_statement(
     claims: Annotated[AccessClaims, Depends(current_user)],
     file: UploadFile = File(..., description="Credit card statement PDF"),
+    private: bool | None = Form(
+        None,
+        description="Override Private Mode for this upload. Defaults to user setting.",
+    ),
 ) -> UploadResponse:
     s = get_settings()
 
@@ -115,8 +122,29 @@ async def upload_statement(
         user_id=claims.sub,
     )
 
+    # Stage 10: respect Private Mode. If the user opted in (per-upload or
+    # via their account default), mark this job so the cleanup worker
+    # deletes the result after a short grace once analysis lands.
+    use_private = private
+    if use_private is None:
+        try:
+            u = get_user_store().by_id(claims.sub)
+            use_private = bool(u and u.private_mode_default)
+        except Exception:
+            use_private = False
+    if use_private:
+        mark_private(user_id=claims.sub, job_id=job_id)
+
     if not needs_pw:
         _enqueue(user_id=claims.sub, job_id=job_id)
+
+    audit_emit(
+        "statements.upload",
+        user=hash_user_id(claims.sub),
+        bytes=len(data),
+        needs_password=needs_pw,
+        private_mode=bool(use_private),
+    )
 
     return UploadResponse(
         job_id=job_id,

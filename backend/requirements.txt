@@ -26,5 +26,8 @@ supabase==2.7.4
 # extraction is the worker's job).
 pymupdf==1.24.10
 
+# PDF generation for the Stage 9 Export Center.
+reportlab==4.2.5
+
 # Observability / logging
 structlog==24.4.0

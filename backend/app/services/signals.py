@@ -383,7 +383,45 @@ def emi_burden(statements: list[Statement]) -> list[Signal]:
     )]
 
 
-# ---------- 10. zero-spend / good-month  (positive signal) ----------
+# ---------- 10. late fee / overlimit ----------
+
+def late_fee(statements: list[Statement]) -> list[Signal]:
+    out: list[Signal] = []
+    for s in statements:
+        late = _f(s.meta.late_fee_charges)
+        over = _f(s.meta.overlimit_charges)
+        total = late + over
+        if total <= 0:
+            continue
+        parts = []
+        if late > 0:
+            parts.append(f"₹{late:,.0f} late fee")
+        if over > 0:
+            parts.append(f"₹{over:,.0f} over-limit fee")
+        out.append(Signal(
+            id="late_fee",
+            severity=3,
+            impact_inr=total,
+            confidence=0.95,
+            category="charges",
+            raw_title=f"₹{total:,.0f} in penalty charges this cycle",
+            raw_body=(
+                f"You were charged {' and '.join(parts)}. These are avoidable "
+                "with autopay (minimum due) and watching the limit."
+            ),
+            next_step_hint=(
+                "Set up autopay for at least the minimum due on this card. "
+                "Even a one-day delay triggers the full late fee."
+            ),
+            refs={
+                "late": late, "overlimit": over, "total": total,
+                "bank": s.meta.bank_display, "last4": s.meta.card_last4,
+            },
+        ))
+    return out
+
+
+# ---------- 11. zero-spend / good-month  (positive signal) ----------
 
 def healthy_cycle(statements: list[Statement]) -> list[Signal]:
     """Counterbalance — only fires if nothing concerning is happening."""
@@ -406,6 +444,7 @@ ALL_GENERATORS = [
     category_dominance,
     weekend_skew,
     emi_burden,
+    late_fee,
     healthy_cycle,
 ]
 

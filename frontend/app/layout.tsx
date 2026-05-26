@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { PrivacyBanner } from "@/components/landing/PrivacyBanner";
 import "./globals.css";
 
 const sans = Inter({
@@ -58,7 +59,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <PrivacyBanner />
+        </AuthProvider>
       </body>
     </html>
   );

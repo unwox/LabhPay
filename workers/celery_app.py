@@ -16,7 +16,7 @@ celery_app = Celery(
     "labhpay",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["tasks.dummy", "tasks.pdf_extract"],
+    include=["tasks.dummy", "tasks.pdf_extract", "tasks.cleanup"],
 )
 
 celery_app.conf.update(
@@ -30,4 +30,15 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     # Privacy: results expire fast so even job metadata doesn't linger.
     result_expires=600,  # 10 minutes
+    # Stage 10: cleanup-worker schedule (run via `celery -A celery_app beat`).
+    beat_schedule={
+        "cleanup-idle-sessions": {
+            "task": "cleanup.idle_sessions",
+            "schedule": float(os.getenv("CLEANUP_IDLE_INTERVAL_S", "120")),
+        },
+        "cleanup-orphan-results": {
+            "task": "cleanup.orphan_results",
+            "schedule": float(os.getenv("CLEANUP_ORPHAN_INTERVAL_S", "60")),
+        },
+    },
 )

@@ -125,6 +125,7 @@ export function HiddenChargesCard({
         ) : null}
         {data.gst > 0 ? <Row label="GST on charges" value={inr(data.gst)} /> : null}
         {data.late_fees > 0 ? <Row label="Late fees" value={inr(data.late_fees)} /> : null}
+        {data.overlimit > 0 ? <Row label="Over-limit fees" value={inr(data.overlimit)} /> : null}
       </ul>
       <p className="mt-3 text-xs text-ink-muted">
         Paying the total outstanding in full next month removes most of this.
@@ -307,7 +308,7 @@ function Header({
   eyebrow,
   title,
 }: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<any>;
   eyebrow: string;
   title: string;
 }) {

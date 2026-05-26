@@ -57,13 +57,15 @@ class Settings(BaseSettings):
     # ---- AI Gateway ----
     GEMINI_API_KEYS: str = ""
     GROK_API_KEYS: str = ""
+    GROQ_API_KEYS: str = ""
     OPENAI_API_KEYS: str = ""
     OPENROUTER_API_KEYS: str = ""
-    AI_FAST_PRIORITY: str = "gemini,grok,openai,openrouter"
-    AI_DEEP_PRIORITY: str = "gemini,grok,openai,openrouter"
+    AI_FAST_PRIORITY: str = "groq,gemini,grok,openai,openrouter"
+    AI_DEEP_PRIORITY: str = "gemini,groq,grok,openai,openrouter"
     AI_FAST_MAX_OUTPUT_TOKENS: int = 800
     AI_DEEP_MAX_OUTPUT_TOKENS: int = 1500
     AI_USER_DAILY_TOKEN_BUDGET: int = 200_000
+    AI_CATEGORIZATION_FALLBACK: bool = True  # Stage 7: enable LLM fallback for low-confidence categorization
 
     # ---- Limits ----
     UPLOAD_MAX_MB: int = 15
@@ -85,6 +87,7 @@ class Settings(BaseSettings):
         raw = {
             "gemini": self.GEMINI_API_KEYS,
             "grok": self.GROK_API_KEYS,
+            "groq": self.GROQ_API_KEYS,
             "openai": self.OPENAI_API_KEYS,
             "openrouter": self.OPENROUTER_API_KEYS,
         }.get(provider.lower(), "")

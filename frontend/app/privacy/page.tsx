@@ -172,7 +172,7 @@ function Panel({
   items,
   tone,
 }: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<any>;
   title: string;
   items: string[];
   tone: "paper" | "ink";
@@ -210,7 +210,7 @@ function Stage({
   body,
 }: {
   n: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<any>;
   title: string;
   body: string;
 }) {

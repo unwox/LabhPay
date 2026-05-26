@@ -78,6 +78,16 @@ _KEY_FIELD_PATTERNS: dict[str, re.Pattern[str]] = {
         + _AMOUNT,
         re.IGNORECASE,
     ),
+    "late_fee_charges": re.compile(
+        r"(?:Late\s+(?:Payment\s+)?Fee|Late\s+Charges?|Penal\s+Charges?)[^\n]{0,40}?"
+        + _AMOUNT,
+        re.IGNORECASE,
+    ),
+    "overlimit_charges": re.compile(
+        r"(?:Over[- ]?Limit\s+(?:Fee|Charges?)|Overlimit\s+Fee)[^\n]{0,40}?"
+        + _AMOUNT,
+        re.IGNORECASE,
+    ),
 }
 
 _DUE_DATE_RE = re.compile(
@@ -170,6 +180,8 @@ def build_meta(
         available_limit=find_field_amount(text, "available_limit"),
         finance_charges=find_field_amount(text, "finance_charges"),
         gst_on_charges=find_field_amount(text, "gst_on_charges"),
+        late_fee_charges=find_field_amount(text, "late_fee_charges"),
+        overlimit_charges=find_field_amount(text, "overlimit_charges"),
         detection_confidence=detection_confidence,
         ocr_used=ocr_used,
         pages=pages,

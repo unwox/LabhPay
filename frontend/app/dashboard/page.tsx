@@ -18,15 +18,31 @@ import {
   StatementsList,
   EmptyState,
 } from "@/components/dashboard/Tiles";
+import {
+  InsightsGrid,
+  SuspiciousPanel,
+  SpendingProfile,
+  BeginnerToggle,
+} from "@/components/dashboard/Insights";
+import { ChatDrawer } from "@/components/assistant/ChatDrawer";
+import { ExportCenter } from "@/components/exports/ExportCenter";
 import { useAuth } from "@/lib/auth-context";
-import { getDashboardSummary, type DashSummary, ApiError } from "@/lib/api";
+import {
+  getDashboardSummary,
+  getIntelligenceSummary,
+  type DashSummary,
+  type IntelligenceSummary,
+  ApiError,
+} from "@/lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const [summary, setSummary] = React.useState<DashSummary | null>(null);
+  const [intel, setIntel] = React.useState<IntelligenceSummary | null>(null);
   const [busy, setBusy] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [beginner, setBeginner] = React.useState(false);
 
   React.useEffect(() => {
     if (!loading && !user) {
@@ -40,8 +56,14 @@ export default function DashboardPage() {
       setBusy(true);
       setError(null);
       try {
-        const s = await getDashboardSummary();
-        if (!cancelled) setSummary(s);
+        const [s, i] = await Promise.all([
+          getDashboardSummary(),
+          getIntelligenceSummary().catch(() => null),
+        ]);
+        if (!cancelled) {
+          setSummary(s);
+          setIntel(i);
+        }
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return;
         if (!cancelled) setError(e instanceof Error ? e.message : "Couldn't load.");
@@ -157,6 +179,36 @@ export default function DashboardPage() {
               <EmiCard data={summary.emi} />
             </div>
 
+            {/* Spending Intelligence */}
+            {intel ? (
+              <section className="space-y-4 md:space-y-6">
+                <div className="flex items-end justify-between gap-3 flex-wrap">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
+                      Spending Intelligence
+                    </p>
+                    <h2 className="mt-2 font-display text-display-sm text-ink">
+                      What stood out this cycle.
+                    </h2>
+                  </div>
+                  <BeginnerToggle value={beginner} onChange={setBeginner} />
+                </div>
+                <InsightsGrid data={intel.insights} beginner={beginner} />
+              </section>
+            ) : null}
+
+            {/* Suspicious Activity + Spending Profile */}
+            {intel ? (
+              <div className="grid lg:grid-cols-12 gap-4 md:gap-6">
+                <div className="lg:col-span-7">
+                  <SuspiciousPanel data={intel.suspicious} beginner={beginner} />
+                </div>
+                <div className="lg:col-span-5">
+                  <SpendingProfile data={intel.profile_tags} />
+                </div>
+              </div>
+            ) : null}
+
             {/* Top merchants + statements */}
             <div className="grid md:grid-cols-2 gap-4 md:gap-6">
               <Card elevation="md" className="p-6 md:p-7">
@@ -184,12 +236,17 @@ export default function DashboardPage() {
               </Card>
             </div>
 
+            {/* Export center */}
+            <ExportCenter />
+
             <p className="text-xs text-ink-muted text-center pt-4">
               Statements are processed in memory and auto-deleted after your session ends.
             </p>
           </>
         ) : null}
       </section>
+
+      <ChatDrawer />
     </main>
   );
 }

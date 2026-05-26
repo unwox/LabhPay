@@ -110,7 +110,7 @@ function Merchant({
   delta,
   up,
 }: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<any>;
   name: string;
   amt: string;
   delta: string;

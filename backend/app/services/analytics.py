@@ -148,12 +148,14 @@ def detect_recurring(txns: Iterable[Transaction]) -> list[dict]:
 def hidden_charges(statements: list[Statement]) -> dict:
     finance = sum((_dec(s.meta.finance_charges) for s in statements), Decimal(0))
     gst = sum((_dec(s.meta.gst_on_charges) for s in statements), Decimal(0))
-    # Late fees / overlimit aren't in StatementMeta yet — Stage 7 / 4b will surface them.
-    total = finance + gst
+    late = sum((_dec(s.meta.late_fee_charges) for s in statements), Decimal(0))
+    overlimit = sum((_dec(s.meta.overlimit_charges) for s in statements), Decimal(0))
+    total = finance + gst + late + overlimit
     return {
         "finance": _quant(finance),
         "gst": _quant(gst),
-        "late_fees": 0.0,
+        "late_fees": _quant(late),
+        "overlimit": _quant(overlimit),
         "total": _quant(total),
         "has_any": bool(total > 0),
     }

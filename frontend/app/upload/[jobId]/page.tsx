@@ -173,7 +173,7 @@ export default function JobPage() {
               <h2 className="font-display text-2xl text-ink mb-3">
                 Transactions
               </h2>
-              <TransactionsTable txns={txns} />
+              <TransactionsTable txns={txns} jobId={jobId} />
               <p className="mt-4 text-xs text-ink-muted">
                 {txns.length} transaction{txns.length === 1 ? "" : "s"} extracted ·
                 Confidence {Math.round((meta.detection_confidence || 0) * 100)}% ·

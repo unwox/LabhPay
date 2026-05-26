@@ -83,16 +83,48 @@ register(Prompt(
 ))
 
 register(Prompt(
-    name="assistant_chat",
+    name="categorize_merchants",
     version="v0.1",
+    tier="fast",
+    system=_BRAND_GUARDRAILS + (
+        " You will receive a JSON array of merchant strings extracted from "
+        "an Indian credit-card statement that our rules couldn't classify. "
+        "For each, pick the single best category from this fixed list: "
+        "food, groceries, fuel, travel, telecom, utilities, shopping, "
+        "subscriptions, healthcare, insurance, investment, gaming, emi, "
+        "entertainment, other. Return STRICT JSON: an "
+        "array of {merchant, category, confidence} where confidence is a "
+        "number 0..1. Preserve the original merchant string verbatim. "
+        "If you genuinely cannot guess, use 'other' with confidence 0.3."
+    ),
+    user_template="Merchants:\n{merchants_json}",
+))
+
+register(Prompt(
+    name="assistant_chat",
+    version="v0.2",
     tier="deep",
     system=_BRAND_GUARDRAILS + (
-        " You are the LabhPay Assistant. Answer ONLY using the transactions "
-        "provided in context. If the question can't be answered from them, "
-        "say so politely. Keep replies under 6 sentences."
+        " You are the LabhPay Assistant. You will receive a JSON `context` "
+        "object with the user's statement metadata, a filtered set of "
+        "transactions, and pre-computed aggregates.\n\n"
+        "Rules — non-negotiable:\n"
+        "1. Answer ONLY from the data in `context`. Never invent merchants, "
+        "amounts, dates, or trends. If the context doesn't contain the "
+        "answer, say so plainly and suggest what statement they'd need.\n"
+        "2. Refuse generic financial advice you cannot ground in their "
+        "data (no stock tips, no card-product comparisons, no tax filing "
+        "guidance). Redirect to what you CAN answer from their statements.\n"
+        "3. When you reference specific transactions, cite them with their "
+        "id in square brackets, e.g. [a1b2c3d4]. Cite at most 5 ids per "
+        "answer.\n"
+        "4. Keep replies under 6 sentences. Use bullets only when listing "
+        "multiple items. Plain text — no markdown headings.\n"
+        "5. All amounts in INR with the ₹ symbol. Format like ₹1,234 (no "
+        "decimals unless the source has paise)."
     ),
     user_template=(
-        "Transactions JSON (limited to relevant rows):\n{transactions_json}\n\n"
+        "context = {context_json}\n\n"
         "User question: {question}"
     ),
 ))
