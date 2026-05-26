@@ -1,3 +1,23 @@
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
 # Logs
 logs
 *.log

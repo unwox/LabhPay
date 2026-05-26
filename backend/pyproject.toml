@@ -1,0 +1,19 @@
+[project]
+name = "labhpay-backend"
+version = "0.1.0"
+description = "LabhPay FastAPI backend"
+requires-python = ">=3.11"
+readme = "../README.md"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = ["tests"]

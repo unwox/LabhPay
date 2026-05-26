@@ -1,0 +1,69 @@
+# LabhPay local development stack
+# Brings up: redis + backend (FastAPI) + worker (Celery) + frontend (Next.js)
+# Usage: docker compose -f infra/docker-compose.yml up --build
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: labhpay-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: labhpay-backend
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      ALLOWED_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ..
+      dockerfile: workers/Dockerfile
+    container_name: labhpay-worker
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: labhpay-frontend
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_started
