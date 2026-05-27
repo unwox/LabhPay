@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     AI_USER_DAILY_TOKEN_BUDGET: int = 200_000
     AI_CATEGORIZATION_FALLBACK: bool = True  # Stage 7: enable LLM fallback for low-confidence categorization
 
+    # ---- Google sign-in ----
+    GOOGLE_CLIENT_ID: str = ""  # OAuth 2.0 Client ID (Web application)
+
     # ---- Limits ----
     UPLOAD_MAX_MB: int = 15
     RATE_LIMIT_UPLOADS_PER_DAY: int = 30

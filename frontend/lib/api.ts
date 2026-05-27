@@ -77,7 +77,8 @@ export async function api<T = unknown>(
 
 export type ApiUser = {
   id: string;
-  phone_e164: string;
+  phone_e164: string | null;
+  email: string | null;
   display_name: string | null;
   language: string;
   private_mode_default: boolean;
@@ -94,6 +95,13 @@ export function verifyOtp(phone: string, otp: string) {
   return api<{ ok: true; user: ApiUser }>("/auth/verify-otp", {
     method: "POST",
     body: JSON.stringify({ phone, otp }),
+  });
+}
+
+export function signInWithGoogle(credential: string) {
+  return api<{ ok: true; user: ApiUser }>("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
   });
 }
 

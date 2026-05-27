@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand/Logo";
 import { Card } from "@/components/ui/card";
 import { PhoneStep } from "@/components/auth/PhoneStep";
 import { OtpStep } from "@/components/auth/OtpStep";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 import { useAuth } from "@/lib/auth-context";
 
 type Step = { kind: "phone" } | { kind: "otp"; phone: string; expiresInMinutes: number };
@@ -33,6 +34,13 @@ function LoginInner() {
   const next = params.get("next") || "/dashboard";
   const { refresh } = useAuth();
   const [step, setStep] = React.useState<Step>({ kind: "phone" });
+  const [googleError, setGoogleError] = React.useState<string | null>(null);
+
+  async function onGoogleSuccess() {
+    setGoogleError(null);
+    await refresh();
+    router.replace(next);
+  }
 
   return (
     <main className="min-h-screen bg-ivory-fade flex flex-col">
@@ -63,11 +71,19 @@ function LoginInner() {
 
           <Card elevation="lg" className="p-6 md:p-8">
             {step.kind === "phone" ? (
-              <PhoneStep
-                onSent={(phone, expires) =>
-                  setStep({ kind: "otp", phone, expiresInMinutes: expires })
-                }
-              />
+              <div className="space-y-5">
+                <GoogleButton onSuccess={onGoogleSuccess} onError={setGoogleError} />
+                {googleError ? (
+                  <p className="text-[13px] text-ink-soft bg-paper-warm rounded-xl p-3">
+                    {googleError}
+                  </p>
+                ) : null}
+                <PhoneStep
+                  onSent={(phone, expires) =>
+                    setStep({ kind: "otp", phone, expiresInMinutes: expires })
+                  }
+                />
+              </div>
             ) : (
               <OtpStep
                 phone={step.phone}

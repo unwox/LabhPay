@@ -12,16 +12,19 @@ const apiOrigin = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
+  // Google Identity Services renders the button inside an iframe hosted at
+  // accounts.google.com — we explicitly allow it.
   "frame-ancestors 'none'",
+  "frame-src 'self' https://accounts.google.com",
   "form-action 'self'",
   "object-src 'none'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://*.googleusercontent.com",
   "font-src 'self' data:",
   // Next.js needs 'unsafe-inline' for hydration styles; everything else is locked down.
-  "style-src 'self' 'unsafe-inline'",
-  // Allow Next's runtime + inline boot script (it generates a small one per page).
-  "script-src 'self' 'unsafe-inline'",
-  `connect-src 'self' ${apiOrigin}`,
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  // Allow Next's runtime + Google's GSI client.
+  "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com",
+  `connect-src 'self' ${apiOrigin} https://accounts.google.com`,
   "worker-src 'self' blob:",
 ].join("; ");
 

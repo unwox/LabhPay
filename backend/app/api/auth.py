@@ -57,8 +57,9 @@ class VerifyOtpBody(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    phone_e164: str
-    display_name: str | None
+    phone_e164: str | None = None
+    email: str | None = None
+    display_name: str | None = None
     language: str
     private_mode_default: bool
 
@@ -67,10 +68,15 @@ def _user_out(u: User) -> UserOut:
     return UserOut(
         id=u.id,
         phone_e164=u.phone_e164,
+        email=u.email,
         display_name=u.display_name,
         language=u.language,
         private_mode_default=u.private_mode_default,
     )
+
+
+class GoogleVerifyBody(BaseModel):
+    credential: str = Field(..., min_length=20, description="Google ID token JWT")
 
 
 # ---------- Cookie helpers ----------
@@ -143,6 +149,41 @@ def verify_otp_route(body: VerifyOtpBody, response: Response) -> dict:
     store.touch_login(user.id)
     _issue_session(response, user)
     audit_emit("auth.login", user=hash_user_id(user.id))
+    return {"ok": True, "user": _user_out(user).model_dump()}
+
+
+@router.post("/google")
+def google_sign_in(body: GoogleVerifyBody, response: Response) -> dict:
+    """Verify a Google ID token and issue our session cookies.
+
+    The frontend gets the `credential` from Google Identity Services
+    (button or One Tap), POSTs it here, and we treat the verified email
+    as the identity for upsert/login.
+    """
+    from app.services.google_auth import GoogleAuthError, verify_id_token
+
+    try:
+        identity = verify_id_token(body.credential)
+    except GoogleAuthError as e:
+        raise HTTPException(status_code=401, detail=str(e)) from e
+
+    if not identity.email_verified:
+        # Google's policy is to set email_verified=true for real Google
+        # accounts; refusing unverified emails is cheap defense.
+        raise HTTPException(
+            status_code=403,
+            detail="Your Google email isn't verified. Verify it and try again.",
+        )
+
+    store = get_user_store()
+    user = store.upsert_by_google(
+        google_id=identity.sub,
+        email=identity.email,
+        display_name=identity.name,
+    )
+    store.touch_login(user.id)
+    _issue_session(response, user)
+    audit_emit("auth.login.google", user=hash_user_id(user.id))
     return {"ok": True, "user": _user_out(user).model_dump()}
 
 
