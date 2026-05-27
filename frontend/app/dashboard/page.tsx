@@ -86,7 +86,9 @@ export default function DashboardPage() {
   }
 
   const empty = summary && summary.txn_count === 0;
-  const masked = user.phone_e164.replace(/(\+91)(\d{5})(\d{5})/, "$1 $2 $3");
+  const masked = user.phone_e164
+    ? user.phone_e164.replace(/(\+91)(\d{5})(\d{5})/, "$1 $2 $3")
+    : user.email || user.display_name || "Signed in";
 
   return (
     <main className="min-h-screen bg-ivory-fade">
