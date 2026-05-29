@@ -49,7 +49,7 @@ export function PrivacyCallout() {
                   Read the privacy promise
                 </Button>
               </Link>
-              <Link href="/upload">
+              <Link href="/dashboard?upload=1">
                 <Button
                   variant="outline"
                   size="lg"

@@ -21,7 +21,7 @@ export function Nav() {
               Sign in
             </Button>
           </Link>
-          <Link href="/upload">
+          <Link href="/dashboard?upload=1">
             <Button variant="primary" size="sm">
               Upload statement
             </Button>

@@ -16,7 +16,7 @@ export function Footer() {
         <FooterCol
           title="Product"
           links={[
-            { label: "Upload statement", href: "/upload" },
+            { label: "Upload statement", href: "/dashboard?upload=1" },
             { label: "Sign in", href: "/login" },
             { label: "How it works", href: "/#how" },
           ]}

@@ -39,7 +39,7 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Link href="/upload">
+            <Link href="/dashboard?upload=1">
               <Button variant="primary" size="lg">
                 Upload your statement
               </Button>

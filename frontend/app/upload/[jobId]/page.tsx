@@ -102,7 +102,7 @@ export default function JobPage() {
     try {
       await deleteStatementJob(jobId);
     } finally {
-      router.replace("/upload");
+      router.replace("/dashboard");
     }
   }
 
@@ -130,7 +130,7 @@ export default function JobPage() {
               Open dashboard
             </Button>
           </Link>
-          <Link href="/upload">
+          <Link href="/dashboard?upload=1">
             <Button variant="ghost" size="sm">
               Another statement
             </Button>
@@ -196,7 +196,7 @@ export default function JobPage() {
             <p className="font-display text-xl text-ink">Couldn&rsquo;t read this one.</p>
             <p className="mt-2 text-ink-soft">{error}</p>
             <div className="mt-5 flex gap-3">
-              <Link href="/upload">
+              <Link href="/dashboard?upload=1">
                 <Button variant="primary">Try another file</Button>
               </Link>
               <Button variant="outline" onClick={handleDelete}>
@@ -241,7 +241,7 @@ export default function JobPage() {
                     Open the dashboard →
                   </Button>
                 </Link>
-                <Link href="/upload">
+                <Link href="/dashboard?upload=1">
                   <Button variant="outline" size="lg">
                     Upload another statement
                   </Button>

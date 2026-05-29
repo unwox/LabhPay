@@ -29,6 +29,7 @@ import {
   PriorityActions,
   rankActions,
 } from "@/components/dashboard/Overview";
+import { UploadDialog } from "@/components/upload/UploadDialog";
 import { ChatDrawer } from "@/components/assistant/ChatDrawer";
 import { ExportCenter } from "@/components/exports/ExportCenter";
 import { useAuth } from "@/lib/auth-context";
@@ -51,6 +52,19 @@ export default function DashboardPage() {
   const [busy, setBusy] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [beginner, setBeginner] = React.useState(false);
+  const [uploadOpen, setUploadOpen] = React.useState(false);
+
+  // Open the upload modal directly when arrived via ?upload=1 (e.g. a landing
+  // CTA). Read from the URL on the client to avoid a Suspense boundary.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("upload") === "1") {
+      setUploadOpen(true);
+      // Clean the URL so a refresh doesn't re-open it.
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!loading && !user) {
@@ -124,11 +138,13 @@ export default function DashboardPage() {
               </Button>
             </Link>
           ) : null}
-          <Link href="/upload">
-            <Button variant="primary" size="sm">
-              Upload statement
-            </Button>
-          </Link>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setUploadOpen(true)}
+          >
+            Upload statement
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -163,7 +179,7 @@ export default function DashboardPage() {
             <p className="mt-2 text-ink-soft">{error}</p>
           </Card>
         ) : empty ? (
-          <EmptyState />
+          <EmptyState onUpload={() => setUploadOpen(true)} />
         ) : summary ? (
           <>
             {/* 1 · Decision layer */}
@@ -306,6 +322,7 @@ export default function DashboardPage() {
         ) : null}
       </section>
 
+      <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
       <ChatDrawer />
     </main>
   );

@@ -331,7 +331,7 @@ function Header({
 
 /* ----------------- empty state ----------------- */
 
-export function EmptyState() {
+export function EmptyState({ onUpload }: { onUpload?: () => void }) {
   return (
     <Card elevation="lg" className="p-8 md:p-12 text-center">
       <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent-mist text-accent-ink mx-auto">
@@ -345,12 +345,22 @@ export function EmptyState() {
         — category breakdown, recurring subscriptions, hidden charges,
         utilization and more.
       </p>
-      <Link
-        href="/upload"
-        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline underline-offset-4"
-      >
-        Go to upload <ChevronRight size={14} />
-      </Link>
+      {onUpload ? (
+        <button
+          type="button"
+          onClick={onUpload}
+          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline underline-offset-4"
+        >
+          Upload a statement <ChevronRight size={14} />
+        </button>
+      ) : (
+        <Link
+          href="/upload"
+          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline underline-offset-4"
+        >
+          Go to upload <ChevronRight size={14} />
+        </Link>
+      )}
     </Card>
   );
 }

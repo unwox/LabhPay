@@ -140,7 +140,7 @@ export default function PrivacyPage() {
             </ul>
 
             <div className="mt-10 flex flex-wrap gap-3">
-              <Link href="/upload">
+              <Link href="/dashboard?upload=1">
                 <Button variant="accent" size="lg">
                   Upload a statement
                 </Button>
