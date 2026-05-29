@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export default function JobPage() {
   const [pwOpen, setPwOpen] = React.useState(false);
   const [pwBusy, setPwBusy] = React.useState(false);
   const [pwError, setPwError] = React.useState<string | null>(null);
+  const [elapsed, setElapsed] = React.useState(0);
 
   // Poll status until terminal, then fetch result.
   React.useEffect(() => {
@@ -105,6 +107,16 @@ export default function JobPage() {
   }
 
   const stage = status?.stage ?? "queued";
+  const processing = !["done", "failed", "needs_password"].includes(stage);
+
+  // Count seconds elapsed while processing, to reassure the app is alive.
+  React.useEffect(() => {
+    if (!processing) return;
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [processing]);
+
+  const pct = Math.round((status?.progress ?? 0) * 100);
 
   return (
     <main className="min-h-screen bg-ivory-fade">
@@ -147,13 +159,36 @@ export default function JobPage() {
         </div>
 
         <Card elevation="md" className="p-5 md:p-6">
+          {processing ? (
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <span className="inline-flex items-center gap-2 text-sm text-ink">
+                <Loader2 size={16} className="animate-spin text-accent-ink" />
+                Analyzing your statement…
+              </span>
+              <span className="text-sm text-ink-soft tabular-nums">{pct}%</span>
+            </div>
+          ) : null}
+
           <ProgressStages stage={stage} />
+
           <div className="mt-4 h-1.5 w-full rounded-full bg-paper-warm overflow-hidden">
-            <div
-              className="h-full bg-accent transition-[width] duration-500"
-              style={{ width: `${Math.round((status?.progress ?? 0) * 100)}%` }}
-            />
+            {processing && pct < 5 ? (
+              // Job is queued / just started — show motion so it never looks frozen.
+              <div className="h-full w-1/3 rounded-full bg-accent animate-indeterminate" />
+            ) : (
+              <div
+                className="h-full bg-accent transition-[width] duration-500"
+                style={{ width: `${stage === "done" ? 100 : pct}%` }}
+              />
+            )}
           </div>
+
+          {processing ? (
+            <p className="mt-3 text-xs text-ink-muted">
+              {elapsed}s elapsed · this usually takes 15–30 seconds. You can
+              keep this tab open.
+            </p>
+          ) : null}
         </Card>
 
         {error ? (

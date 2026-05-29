@@ -82,10 +82,15 @@ const config: Config = {
           "0%,100%": { transform: "translateY(0)" },
           "50%":     { transform: "translateY(-6px)" },
         },
+        indeterminate: {
+          "0%":   { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(420%)" },
+        },
       },
       animation: {
         "fade-rise": "fade-rise 600ms cubic-bezier(.2,.8,.2,1) both",
         "float-slow": "float-slow 6s ease-in-out infinite",
+        indeterminate: "indeterminate 1.1s ease-in-out infinite",
       },
       maxWidth: {
         prose: "68ch",

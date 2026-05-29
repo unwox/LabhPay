@@ -182,26 +182,53 @@ export type UploadResponse = {
   needs_password: boolean;
 };
 
-export async function uploadStatement(
+export function uploadStatement(
   file: File,
-  opts?: { private?: boolean },
+  opts?: { private?: boolean; onProgress?: (pct: number) => void },
 ): Promise<UploadResponse> {
-  const fd = new FormData();
-  fd.append("file", file);
-  if (opts?.private != null) fd.append("private", String(opts.private));
-  const headers: Record<string, string> = {};
-  const csrf = readCookie("lp_csrf");
-  if (csrf) headers["X-CSRF-Token"] = csrf;
-  const res = await fetch(
-    `${BASE}/statements/upload`,
-    { method: "POST", body: fd, credentials: "include", headers }
-  );
-  const text = await res.text();
-  const payload = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    throw new ApiError(res.status, payload?.detail || `Upload failed (${res.status})`);
-  }
-  return payload as UploadResponse;
+  // Uses XHR (not fetch) specifically so we can report real upload progress
+  // via xhr.upload.onprogress — fetch() can't surface bytes-sent. Same-origin
+  // (/api proxy), so cookies + CSRF work exactly like the other calls.
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (opts?.private != null) fd.append("private", String(opts.private));
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE}/statements/upload`, true);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("Accept", "application/json");
+    const csrf = readCookie("lp_csrf");
+    if (csrf) xhr.setRequestHeader("X-CSRF-Token", csrf);
+    // NOTE: do not set Content-Type — the browser adds the multipart boundary.
+
+    if (opts?.onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          opts.onProgress!(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let payload: { detail?: string } | null = null;
+      try {
+        payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        payload = { detail: xhr.responseText };
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload as unknown as UploadResponse);
+      } else {
+        reject(
+          new ApiError(xhr.status, payload?.detail || `Upload failed (${xhr.status})`)
+        );
+      }
+    };
+    xhr.onerror = () => reject(new ApiError(0, "Network error during upload."));
+    xhr.ontimeout = () => reject(new ApiError(0, "Upload timed out. Try again."));
+    xhr.send(fd);
+  });
 }
 
 export function getStatementStatus(jobId: string) {
