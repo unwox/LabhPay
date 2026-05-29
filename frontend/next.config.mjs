@@ -2,10 +2,12 @@
 
 // Stage 10 — locked-down security headers.
 //
-// CSP is intentionally tight: we only XHR to NEXT_PUBLIC_API_BASE, and
-// the frontend is otherwise self-contained. If you add an embedded CDN
-// (fonts, analytics), extend connectSrc / scriptSrc / styleSrc here —
-// not inline in pages.
+// The frontend talks to the backend through a same-origin proxy mounted at
+// /api/*. This avoids browser third-party cookie blocking (Chrome / Safari)
+// for the auth session cookies set by the FastAPI backend on hf.space.
+//
+// The proxy target is configured via NEXT_PUBLIC_API_BASE (e.g.
+// "https://labhpay-backend.hf.space" in prod, "http://localhost:8000" in dev).
 
 const apiOrigin = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
 
@@ -24,7 +26,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   // Allow Next's runtime + Google's GSI client.
   "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com",
-  `connect-src 'self' ${apiOrigin} https://accounts.google.com`,
+  // API traffic goes through /api/* (same-origin), so we only need 'self' + Google.
+  "connect-src 'self' https://accounts.google.com",
   "worker-src 'self' blob:",
 ].join("; ");
 
@@ -52,6 +55,16 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+    ];
+  },
+  // Same-origin proxy: browser sees /api/* as labhpay.com, so the FastAPI
+  // session cookies become first-party and survive third-party-cookie blocks.
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiOrigin}/:path*`,
       },
     ];
   },

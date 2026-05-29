@@ -26,9 +26,12 @@ from ai_gateway.providers.base import (
 class GeminiAdapter:
     name = "gemini"
     base_url = "https://generativelanguage.googleapis.com/v1beta"
+    # Google retired the v1beta gemini-1.5-* aliases in 2025; current
+    # generally-available models are the 2.x family. Flash for the fast
+    # tier, Pro for the deep / longer-context tier.
     models = {
-        "fast": "gemini-1.5-flash",
-        "deep": "gemini-1.5-pro",
+        "fast": "gemini-2.0-flash",
+        "deep": "gemini-2.5-pro",
     }
 
     def model_for(self, tier: Tier) -> str:

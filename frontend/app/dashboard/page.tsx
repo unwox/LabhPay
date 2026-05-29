@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { CategoryDonut } from "@/components/dashboard/CategoryDonut";
 import { MonthlyTrend } from "@/components/dashboard/MonthlyTrend";
 import {
-  HeadlineTile,
   TopMerchants,
   HiddenChargesCard,
   SubscriptionsCard,
@@ -24,9 +23,16 @@ import {
   SpendingProfile,
   BeginnerToggle,
 } from "@/components/dashboard/Insights";
+import { Collapsible } from "@/components/dashboard/Collapsible";
+import {
+  FinancialSnapshot,
+  PriorityActions,
+  rankActions,
+} from "@/components/dashboard/Overview";
 import { ChatDrawer } from "@/components/assistant/ChatDrawer";
 import { ExportCenter } from "@/components/exports/ExportCenter";
 import { useAuth } from "@/lib/auth-context";
+import { inr, titleCase } from "@/lib/format";
 import {
   getDashboardSummary,
   getIntelligenceSummary,
@@ -34,6 +40,8 @@ import {
   type IntelligenceSummary,
   ApiError,
 } from "@/lib/api";
+
+const TOP_ACTIONS = 3;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -86,9 +94,20 @@ export default function DashboardPage() {
   }
 
   const empty = summary && summary.txn_count === 0;
-  const masked = user.phone_e164
-    ? user.phone_e164.replace(/(\+91)(\d{5})(\d{5})/, "$1 $2 $3")
-    : user.email || user.display_name || "Signed in";
+  const firstName =
+    user.display_name?.split(" ")[0] ||
+    user.email?.split("@")[0] ||
+    "there";
+
+  // Ranked actions (insights + suspicious), top few up front.
+  const actions = intel ? rankActions(intel.insights, intel.suspicious) : [];
+  const topActions = actions.slice(0, TOP_ACTIONS);
+  const moreInsights = intel ? intel.insights : [];
+  const suspicious = intel ? intel.suspicious : [];
+
+  const topCat = summary?.by_category?.[0];
+  const subsMonthly =
+    summary?.recurring?.reduce((a, r) => a + r.monthly_amount, 0) ?? 0;
 
   return (
     <main className="min-h-screen bg-ivory-fade">
@@ -98,6 +117,13 @@ export default function DashboardPage() {
           <Logo size="md" />
         </Link>
         <div className="flex items-center gap-2">
+          {user?.is_admin ? (
+            <Link href="/admin">
+              <Button variant="ghost" size="sm">
+                Admin
+              </Button>
+            </Link>
+          ) : null}
           <Link href="/upload">
             <Button variant="primary" size="sm">
               Upload statement
@@ -116,13 +142,14 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <section className="px-[var(--site-gutter)] py-8 md:py-12 max-w-site mx-auto space-y-6 md:space-y-8">
+      <section className="px-[var(--site-gutter)] py-8 md:py-10 max-w-site mx-auto space-y-6">
         <div>
           <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-            Signed in · {masked}
+            Your money, at a glance
           </p>
-          <h1 className="mt-3 font-display text-display-sm md:text-display-md text-ink">
-            Your <em className="italic text-accent">spending</em>, at a glance.
+          <h1 className="mt-3 font-display text-display-sm md:text-4xl text-ink">
+            Hi {titleCase(firstName)}.{" "}
+            <span className="text-ink-soft">Here&rsquo;s what matters.</span>
           </h1>
         </div>
 
@@ -139,110 +166,141 @@ export default function DashboardPage() {
           <EmptyState />
         ) : summary ? (
           <>
-            {/* Headline row */}
-            <HeadlineTile
-              total={summary.total_spending}
-              txnCount={summary.txn_count}
-              confidence={summary.confidence}
-            />
+            {/* 1 · Decision layer */}
+            <FinancialSnapshot summary={summary} />
 
-            {/* Donut + trend */}
-            <div className="grid lg:grid-cols-12 gap-4 md:gap-6">
-              <Card elevation="md" className="p-6 md:p-7 lg:col-span-7">
-                <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                  Where it went
-                </p>
-                <p className="mt-1 font-display text-xl text-ink">
-                  Category breakdown
-                </p>
-                <div className="mt-5">
-                  <CategoryDonut data={summary.by_category} />
+            {/* 2 · Needs your attention */}
+            <div className="pt-2">
+              <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
+                    Needs your attention
+                  </p>
+                  <h2 className="mt-1 font-display text-2xl text-ink">
+                    {topActions.length
+                      ? `Top ${topActions.length} ${
+                          topActions.length === 1 ? "thing" : "things"
+                        } to act on`
+                      : "Nothing urgent"}
+                  </h2>
                 </div>
-              </Card>
-
-              <Card elevation="md" className="p-6 md:p-7 lg:col-span-5">
-                <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                  Monthly trend
-                </p>
-                <p className="mt-1 font-display text-xl text-ink">
-                  Spend over time
-                </p>
-                <div className="mt-5">
-                  <MonthlyTrend data={summary.monthly_trend} />
-                </div>
-              </Card>
-            </div>
-
-            {/* Hidden charges + Subscriptions + Utilization + EMI */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              <HiddenChargesCard data={summary.hidden_charges} />
-              <SubscriptionsCard data={summary.recurring} />
-              <UtilizationCard data={summary.utilization} />
-              <EmiCard data={summary.emi} />
-            </div>
-
-            {/* Spending Intelligence */}
-            {intel ? (
-              <section className="space-y-4 md:space-y-6">
-                <div className="flex items-end justify-between gap-3 flex-wrap">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                      Spending Intelligence
-                    </p>
-                    <h2 className="mt-2 font-display text-display-sm text-ink">
-                      What stood out this cycle.
-                    </h2>
-                  </div>
+                {intel ? (
                   <BeginnerToggle value={beginner} onChange={setBeginner} />
-                </div>
-                <InsightsGrid data={intel.insights} beginner={beginner} />
-              </section>
-            ) : null}
-
-            {/* Suspicious Activity + Spending Profile */}
-            {intel ? (
-              <div className="grid lg:grid-cols-12 gap-4 md:gap-6">
-                <div className="lg:col-span-7">
-                  <SuspiciousPanel data={intel.suspicious} beginner={beginner} />
-                </div>
-                <div className="lg:col-span-5">
-                  <SpendingProfile data={intel.profile_tags} />
-                </div>
+                ) : null}
               </div>
-            ) : null}
-
-            {/* Top merchants + statements */}
-            <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-              <Card elevation="md" className="p-6 md:p-7">
-                <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                  Top merchants
-                </p>
-                <p className="mt-1 font-display text-xl text-ink">
-                  Where your card showed up most
-                </p>
-                <div className="mt-5">
-                  <TopMerchants data={summary.top_merchants} />
-                </div>
-              </Card>
-
-              <Card elevation="md" className="p-6 md:p-7">
-                <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                  Statements
-                </p>
-                <p className="mt-1 font-display text-xl text-ink">
-                  Loaded for this session
-                </p>
-                <div className="mt-5">
-                  <StatementsList data={summary.statements} />
-                </div>
-              </Card>
+              <PriorityActions cards={topActions} beginner={beginner} />
             </div>
 
-            {/* Export center */}
-            <ExportCenter />
+            {/* 3 · Progressive disclosure — explore on demand */}
+            <div className="space-y-3 pt-2">
+              <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
+                Explore further
+              </p>
+
+              <Collapsible
+                eyebrow="Where it went"
+                title="Spending breakdown"
+                summary={
+                  topCat
+                    ? `${titleCase(topCat.category)} leads · ${inr(topCat.amount)}`
+                    : undefined
+                }
+              >
+                <div className="grid lg:grid-cols-12 gap-5">
+                  <div className="lg:col-span-7">
+                    <CategoryDonut data={summary.by_category} />
+                  </div>
+                  <div className="lg:col-span-5">
+                    <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted mb-3">
+                      Spend over time
+                    </p>
+                    <MonthlyTrend data={summary.monthly_trend} />
+                  </div>
+                  <div className="lg:col-span-12">
+                    <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted mb-2">
+                      Top merchants
+                    </p>
+                    <TopMerchants data={summary.top_merchants} />
+                  </div>
+                </div>
+              </Collapsible>
+
+              <Collapsible
+                eyebrow="Charges & limits"
+                title="Fees, interest & utilization"
+                summary={
+                  summary.hidden_charges.has_any
+                    ? `${inr(summary.hidden_charges.total)} in charges`
+                    : "No charges this cycle"
+                }
+              >
+                <div className="grid md:grid-cols-2 gap-4">
+                  <HiddenChargesCard data={summary.hidden_charges} />
+                  <UtilizationCard data={summary.utilization} />
+                </div>
+              </Collapsible>
+
+              <Collapsible
+                eyebrow="Recurring"
+                title="Subscriptions & EMIs"
+                summary={
+                  summary.recurring.length || summary.emi.count
+                    ? `${summary.recurring.length} recurring${
+                        subsMonthly ? ` · ${inr(subsMonthly)}/mo` : ""
+                      }`
+                    : "None detected"
+                }
+              >
+                <div className="grid md:grid-cols-2 gap-4">
+                  <SubscriptionsCard data={summary.recurring} />
+                  <EmiCard data={summary.emi} />
+                </div>
+              </Collapsible>
+
+              {intel && (moreInsights.length || suspicious.length) ? (
+                <Collapsible
+                  eyebrow="Spending intelligence"
+                  title="All insights & alerts"
+                  badge={
+                    <span className="text-[11px] uppercase tracking-eyebrow bg-accent-mist text-accent-ink px-2.5 py-1 rounded-full">
+                      {moreInsights.length + suspicious.length}
+                    </span>
+                  }
+                >
+                  <div className="space-y-5">
+                    <InsightsGrid data={moreInsights} beginner={beginner} />
+                    {suspicious.length ? (
+                      <SuspiciousPanel data={suspicious} beginner={beginner} />
+                    ) : null}
+                  </div>
+                </Collapsible>
+              ) : null}
+
+              {intel && intel.profile_tags.length ? (
+                <Collapsible
+                  eyebrow="About you"
+                  title="Your spending profile"
+                  summary={`You look like a ${intel.profile_tags[0].title}`}
+                >
+                  <SpendingProfile data={intel.profile_tags} />
+                </Collapsible>
+              ) : null}
+
+              <Collapsible
+                eyebrow="Records"
+                title="Statements & reports"
+                summary={`${summary.statements.length} loaded`}
+              >
+                <div className="space-y-5">
+                  <StatementsList data={summary.statements} />
+                  <ExportCenter />
+                </div>
+              </Collapsible>
+            </div>
 
             <p className="text-xs text-ink-muted text-center pt-4">
-              Statements are processed in memory and auto-deleted after your session ends.
+              Statements are processed in memory and auto-deleted after your
+              session ends.
             </p>
           </>
         ) : null}

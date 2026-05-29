@@ -49,6 +49,24 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+/**
+ * Strip raw transaction-id citation tokens (e.g. "[dc0fd81c44c3d183]") from
+ * the displayed answer. They're surfaced separately as a "N citations" chip,
+ * so showing the hex codes inline is just noise. Also tidy the leftover
+ * phrasing ("transactions like , and ." → clean punctuation/whitespace).
+ */
+function cleanAnswer(text: string): string {
+  let s = (text || "").replace(/\[[a-f0-9]{6,32}\]/gi, "");
+  // Remove now-dangling list scaffolding like "such as ,  , and ."
+  s = s.replace(/\b(such as|like|for example|e\.g\.,?|including)\s*(?=[.,;:]|$)/gi, "");
+  s = s.replace(/\s+,/g, ",");           // " ," -> ","
+  s = s.replace(/,\s*(,|\.)/g, "$1");    // ", ," / ", ." -> "," / "."
+  s = s.replace(/\(\s*\)/g, "");          // empty "()"
+  s = s.replace(/[ \t]{2,}/g, " ");       // collapse runs of spaces
+  s = s.replace(/\s+([.,;:])/g, "$1");    // space before punctuation
+  return s.trim();
+}
+
 export function ChatDrawer() {
   const [open, setOpen] = React.useState(false);
   const [messages, setMessages] = React.useState<Message[]>([]);
@@ -58,6 +76,22 @@ export function ChatDrawer() {
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  // Open (and optionally pre-fill) when another part of the dashboard asks —
+  // e.g. the hero "Ask the assistant" button or a priority-action next step.
+  React.useEffect(() => {
+    function onOpen(e: Event) {
+      const q = (e as CustomEvent<{ question?: string }>).detail?.question;
+      setOpen(true);
+      if (q) {
+        setInput(q);
+        requestAnimationFrame(() => inputRef.current?.focus());
+      }
+    }
+    window.addEventListener("labhpay:assistant", onOpen as EventListener);
+    return () =>
+      window.removeEventListener("labhpay:assistant", onOpen as EventListener);
+  }, []);
 
   // Fetch suggestions once when first opened.
   React.useEffect(() => {
@@ -131,7 +165,7 @@ export function ChatDrawer() {
       const assistantMsg: Message = {
         role: "assistant",
         id: uid(),
-        full: reply.answer,
+        full: cleanAnswer(reply.answer),
         text: "",
         meta: reply,
         streaming: true,

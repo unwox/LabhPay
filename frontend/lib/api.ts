@@ -4,11 +4,13 @@
  *   - prefixes the base URL,
  *   - sends cookies (`credentials: 'include'`) so JWT sessions work,
  *   - throws a typed ApiError on 4xx/5xx.
+ *
+ * BASE is "/api" — a same-origin Next.js rewrite (see next.config.mjs) proxies
+ * to the real backend. Same-origin keeps the FastAPI session cookies first-
+ * party on labhpay.com, sidestepping Chrome/Safari third-party-cookie blocks.
  */
 
-const BASE =
-  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") ||
-  "http://localhost:8000";
+const BASE = "/api";
 
 export class ApiError extends Error {
   status: number;
@@ -82,6 +84,7 @@ export type ApiUser = {
   display_name: string | null;
   language: string;
   private_mode_default: boolean;
+  is_admin?: boolean;
 };
 
 export function requestOtp(phone: string, first_name?: string) {
@@ -190,7 +193,7 @@ export async function uploadStatement(
   const csrf = readCookie("lp_csrf");
   if (csrf) headers["X-CSRF-Token"] = csrf;
   const res = await fetch(
-    `${(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "")}/statements/upload`,
+    `${BASE}/statements/upload`,
     { method: "POST", body: fd, credentials: "include", headers }
   );
   const text = await res.text();
@@ -436,7 +439,7 @@ export function listExports() {
 
 export function exportUrl(kind: ExportKind, ids?: string[]): string {
   const base =
-    (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
+    BASE;
   const q = ids && ids.length ? `?ids=${encodeURIComponent(ids.join(","))}` : "";
   return `${base}/exports/${kind}.pdf${q}`;
 }
@@ -470,4 +473,81 @@ export async function downloadExport(kind: ExportKind, ids?: string[]): Promise<
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// ---- Admin ----
+
+export type AdminUser = {
+  id: string;
+  email: string | null;
+  phone_e164: string | null;
+  display_name: string | null;
+  auth_method: "google" | "phone" | "both" | "unknown";
+  created_at: string | null;
+  last_login_at: string | null;
+  login_count: number;
+  disabled: boolean;
+  is_admin: boolean;
+};
+
+export type AdminUsersResp = {
+  totals: {
+    users: number;
+    new_7d: number;
+    active_7d: number;
+    active_30d: number;
+    disabled: number;
+  };
+  users: AdminUser[];
+};
+
+export function adminListUsers() {
+  return api<AdminUsersResp>("/admin/users");
+}
+
+export type AdminAnalytics = {
+  available: boolean;
+  reason?: string;
+  days: number;
+  totals?: {
+    events: number;
+    logins: number;
+    uploads: number;
+    assistant_turns: number;
+    exports: number;
+    resolution_emails: number;
+  };
+  events: Record<string, number>;
+  daily_active: { day: string; users: number }[];
+  uploads_by_day: { day: string; count: number }[];
+};
+
+export function adminAnalytics(days = 30) {
+  return api<AdminAnalytics>(`/admin/analytics?days=${days}`);
+}
+
+export type AdminHealth = {
+  redis: { ok?: boolean; dbsize?: number; error?: string };
+  ai: {
+    providers?: Record<string, unknown>;
+    fast_priority?: string;
+    deep_priority?: string;
+    error?: string;
+  };
+  users: { store?: string; count?: number; error?: string };
+  generated_at?: string;
+};
+
+export function adminHealth() {
+  return api<AdminHealth>("/admin/health");
+}
+
+export function adminUserAction(
+  userId: string,
+  action: "disable" | "enable" | "logout" | "reset-limits"
+) {
+  return api<{ ok: boolean; user_id: string; action: string }>(
+    `/admin/users/${userId}/${action}`,
+    { method: "POST" }
+  );
 }

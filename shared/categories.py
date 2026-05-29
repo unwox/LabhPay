@@ -16,11 +16,13 @@ class Category(str, Enum):
     UTILITIES = "utilities"
     TELECOM = "telecom"
     HEALTHCARE = "healthcare"
+    EDUCATION = "education"
     INSURANCE = "insurance"
     EMI = "emi"
     ENTERTAINMENT = "entertainment"
     GAMING = "gaming"
     INVESTMENT = "investment"
+    HOME_SERVICES = "home_services"
     OTHER = "other"
 
 
@@ -36,6 +38,8 @@ CATEGORY_ORDER: list[Category] = [
     Category.SUBSCRIPTIONS,
     Category.ENTERTAINMENT,
     Category.HEALTHCARE,
+    Category.EDUCATION,
+    Category.HOME_SERVICES,
     Category.INSURANCE,
     Category.EMI,
     Category.INVESTMENT,

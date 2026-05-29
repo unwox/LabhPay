@@ -109,5 +109,7 @@ def refresh_cookie_kwargs() -> dict[str, Any]:
         "httponly": True,
         "secure": is_prod,
         "samesite": "lax" if not is_prod else "none",
-        "path": "/auth",
+        # path=/ so the cookie is sent to /api/auth/refresh through the
+        # frontend same-origin proxy. (Path=/auth would not match /api/auth/*).
+        "path": "/",
     }

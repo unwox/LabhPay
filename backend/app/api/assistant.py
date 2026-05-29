@@ -60,11 +60,27 @@ class ChatResponse(BaseModel):
 
 
 def _list_job_ids(user_id: str) -> list[str]:
-    out: list[str] = []
+    """Find every result key for this user. Uses KEYS rather than SCAN
+    because Upstash's TLS-fronted SCAN cursor can occasionally yield an
+    empty page on the first iteration, causing the chat to report 'no
+    statements' even when the dashboard sees data. Session-scoped key
+    space is small (a handful of jobs, 30-min TTL), so KEYS is fine."""
     prefix = f"sess:{user_id}:result:"
-    for k in _str_client().scan_iter(match=f"{prefix}*", count=200):
-        out.append(k[len(prefix):])
-    return out
+    try:
+        keys = _str_client().keys(f"{prefix}*") or []
+    except Exception:
+        keys = []
+    out = [k[len(prefix):] for k in keys if isinstance(k, str) and k.startswith(prefix)]
+    # Belt-and-suspenders: also try scan_iter and merge, in case keys() is
+    # rate-limited in some regions.
+    if not out:
+        try:
+            for k in _str_client().scan_iter(match=f"{prefix}*", count=200):
+                if isinstance(k, str) and k.startswith(prefix):
+                    out.append(k[len(prefix):])
+        except Exception:
+            pass
+    return list(dict.fromkeys(out))  # dedupe, preserve order
 
 
 def _check_turn_rate(user_id: str) -> None:

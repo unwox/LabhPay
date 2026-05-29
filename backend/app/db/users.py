@@ -29,6 +29,8 @@ class User:
     private_mode_default: bool = True
     created_at: str | None = None
     last_login_at: str | None = None
+    disabled: bool = False
+    login_count: int = 0
 
 
 class _Backend:
@@ -42,6 +44,11 @@ class _Backend:
     def by_email(self, email: str) -> User | None: ...
     def by_google_id(self, google_id: str) -> User | None: ...
     def touch_login(self, user_id: str) -> None: ...
+
+    # Admin
+    def list_users(self, limit: int = 500) -> list[User]: ...
+    def set_disabled(self, user_id: str, disabled: bool) -> None: ...
+    def count_users(self) -> int: ...
 
     # Refresh tokens
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str: ...
@@ -125,6 +132,23 @@ class _MemoryBackend(_Backend):
         u = self._users.get(user_id)
         if u:
             u.last_login_at = datetime.now(timezone.utc).isoformat()
+            u.login_count = (u.login_count or 0) + 1
+
+    def list_users(self, limit: int = 500) -> list[User]:
+        users = sorted(
+            self._users.values(),
+            key=lambda u: u.created_at or "",
+            reverse=True,
+        )
+        return users[:limit]
+
+    def set_disabled(self, user_id: str, disabled: bool) -> None:
+        u = self._users.get(user_id)
+        if u:
+            u.disabled = disabled
+
+    def count_users(self) -> int:
+        return len(self._users)
 
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str:
         tid = str(uuid.uuid4())
@@ -152,110 +176,203 @@ class _MemoryBackend(_Backend):
 
 # ---------------- Supabase backend ----------------
 
+def _is_transient_transport_error(exc: BaseException) -> bool:
+    """True for stale-connection / transport errors that warrant rebuilding
+    the supabase client and retrying once. We match on class names rather
+    than importing httpx, which is a transitive dep we don't pin directly."""
+    cls = exc.__class__.__name__
+    return cls in {
+        "RemoteProtocolError",
+        "ProtocolError",
+        "ConnectError",
+        "ReadError",
+        "WriteError",
+        "PoolTimeout",
+        "ConnectTimeout",
+        "ReadTimeout",
+        "RemoteDisconnected",
+    } or any(name in cls for name in ("ProtocolError", "Disconnect"))
+
+
 class _SupabaseBackend(_Backend):
     name = "supabase"
 
     def __init__(self, url: str, service_key: str) -> None:
         from supabase import create_client  # type: ignore
+        # Keep URL + key so we can rebuild the client on stale connections.
+        # HF Spaces sit behind Cloudflare, which drops idle HTTP/2 keep-alives;
+        # the cached supabase-py client then fails with RemoteProtocolError on
+        # the first request after the idle period. We catch and retry once.
+        self._url = url
+        self._service_key = service_key
         self.sb = create_client(url, service_key)
 
+    def _retry(self, fn, *args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except BaseException as e:  # noqa: BLE001 — we re-raise if not transient
+            if not _is_transient_transport_error(e):
+                raise
+            # Rebuild the underlying client and try once more.
+            from supabase import create_client  # type: ignore
+            self.sb = create_client(self._url, self._service_key)
+            return fn(*args, **kwargs)
+
     def upsert_by_phone(self, phone_e164: str) -> User:
-        sb = self.sb
-        existing = sb.table("users").select("*").eq("phone_e164", phone_e164).limit(1).execute()
-        if existing.data:
-            row = existing.data[0]
-        else:
-            row = sb.table("users").insert({"phone_e164": phone_e164}).execute().data[0]
-        return _row_to_user(row)
+        def _do() -> User:
+            sb = self.sb
+            existing = sb.table("users").select("*").eq("phone_e164", phone_e164).limit(1).execute()
+            if existing.data:
+                row = existing.data[0]
+            else:
+                row = sb.table("users").insert({"phone_e164": phone_e164}).execute().data[0]
+            return _row_to_user(row)
+        return self._retry(_do)
 
     def upsert_by_google(
         self, *, google_id: str, email: str, display_name: str | None
     ) -> User:
-        sb = self.sb
-        # Try to find an existing row by google_id first, then by email.
-        found = (
-            sb.table("users").select("*").eq("google_id", google_id).limit(1).execute()
-        )
-        if not found.data:
+        def _do() -> User:
+            sb = self.sb
+            # Try to find an existing row by google_id first, then by email.
             found = (
-                sb.table("users")
-                .select("*")
-                .ilike("email", email)
+                sb.table("users").select("*").eq("google_id", google_id).limit(1).execute()
+            )
+            if not found.data:
+                found = (
+                    sb.table("users")
+                    .select("*")
+                    .ilike("email", email)
+                    .limit(1)
+                    .execute()
+                )
+            if found.data:
+                row = found.data[0]
+                updates: dict[str, Any] = {}
+                if not row.get("google_id"):
+                    updates["google_id"] = google_id
+                if not row.get("email"):
+                    updates["email"] = email
+                if display_name and not row.get("display_name"):
+                    updates["display_name"] = display_name
+                if updates:
+                    row = sb.table("users").update(updates).eq("id", row["id"]).execute().data[0]
+                return _row_to_user(row)
+            # No existing row — create one.
+            payload = {
+                "google_id": google_id,
+                "email": email,
+                "display_name": display_name,
+            }
+            row = sb.table("users").insert(payload).execute().data[0]
+            return _row_to_user(row)
+        return self._retry(_do)
+
+    def by_email(self, email: str) -> User | None:
+        def _do() -> User | None:
+            r = self.sb.table("users").select("*").ilike("email", email).limit(1).execute()
+            return _row_to_user(r.data[0]) if r.data else None
+        return self._retry(_do)
+
+    def by_google_id(self, google_id: str) -> User | None:
+        def _do() -> User | None:
+            r = self.sb.table("users").select("*").eq("google_id", google_id).limit(1).execute()
+            return _row_to_user(r.data[0]) if r.data else None
+        return self._retry(_do)
+
+    def by_id(self, user_id: str) -> User | None:
+        def _do() -> User | None:
+            r = self.sb.table("users").select("*").eq("id", user_id).limit(1).execute()
+            return _row_to_user(r.data[0]) if r.data else None
+        return self._retry(_do)
+
+    def touch_login(self, user_id: str) -> None:
+        def _do() -> None:
+            # Read-modify-write the login_count. A race here just under-counts
+            # by one occasionally — acceptable for an admin stat.
+            cur = (
+                self.sb.table("users")
+                .select("login_count")
+                .eq("id", user_id)
                 .limit(1)
                 .execute()
             )
-        if found.data:
-            row = found.data[0]
-            updates: dict[str, Any] = {}
-            if not row.get("google_id"):
-                updates["google_id"] = google_id
-            if not row.get("email"):
-                updates["email"] = email
-            if display_name and not row.get("display_name"):
-                updates["display_name"] = display_name
-            if updates:
-                row = sb.table("users").update(updates).eq("id", row["id"]).execute().data[0]
-            return _row_to_user(row)
-        # No existing row — create one.
-        payload = {
-            "google_id": google_id,
-            "email": email,
-            "display_name": display_name,
-        }
-        row = sb.table("users").insert(payload).execute().data[0]
-        return _row_to_user(row)
+            n = 0
+            if cur.data and isinstance(cur.data[0].get("login_count"), int):
+                n = cur.data[0]["login_count"]
+            self.sb.table("users").update(
+                {
+                    "last_login_at": datetime.now(timezone.utc).isoformat(),
+                    "login_count": n + 1,
+                }
+            ).eq("id", user_id).execute()
+        self._retry(_do)
 
-    def by_email(self, email: str) -> User | None:
-        r = self.sb.table("users").select("*").ilike("email", email).limit(1).execute()
-        return _row_to_user(r.data[0]) if r.data else None
+    def list_users(self, limit: int = 500) -> list[User]:
+        def _do() -> list[User]:
+            r = (
+                self.sb.table("users")
+                .select("*")
+                .order("created_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
+            return [_row_to_user(row) for row in (r.data or [])]
+        return self._retry(_do)
 
-    def by_google_id(self, google_id: str) -> User | None:
-        r = self.sb.table("users").select("*").eq("google_id", google_id).limit(1).execute()
-        return _row_to_user(r.data[0]) if r.data else None
+    def set_disabled(self, user_id: str, disabled: bool) -> None:
+        def _do() -> None:
+            self.sb.table("users").update({"disabled": disabled}).eq("id", user_id).execute()
+        self._retry(_do)
 
-    def by_id(self, user_id: str) -> User | None:
-        r = self.sb.table("users").select("*").eq("id", user_id).limit(1).execute()
-        return _row_to_user(r.data[0]) if r.data else None
-
-    def touch_login(self, user_id: str) -> None:
-        self.sb.table("users").update(
-            {"last_login_at": datetime.now(timezone.utc).isoformat()}
-        ).eq("id", user_id).execute()
+    def count_users(self) -> int:
+        def _do() -> int:
+            r = self.sb.table("users").select("id", count="exact").limit(1).execute()
+            return int(getattr(r, "count", 0) or 0)
+        return self._retry(_do)
 
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str:
-        r = self.sb.table("refresh_tokens").insert({
-            "user_id": user_id,
-            "token_hash": token_hash,
-            "expires_at": expires_at.isoformat(),
-        }).execute()
-        return r.data[0]["id"]
+        def _do() -> str:
+            r = self.sb.table("refresh_tokens").insert({
+                "user_id": user_id,
+                "token_hash": token_hash,
+                "expires_at": expires_at.isoformat(),
+            }).execute()
+            return r.data[0]["id"]
+        return self._retry(_do)
 
     def revoke_refresh(self, token_id: str) -> None:
-        self.sb.table("refresh_tokens").update(
-            {"revoked_at": datetime.now(timezone.utc).isoformat()}
-        ).eq("id", token_id).execute()
+        def _do() -> None:
+            self.sb.table("refresh_tokens").update(
+                {"revoked_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", token_id).execute()
+        self._retry(_do)
 
     def find_refresh(self, token_hash: str) -> tuple[str, str] | None:
-        r = (
-            self.sb.table("refresh_tokens")
-            .select("id, user_id, expires_at, revoked_at")
-            .eq("token_hash", token_hash)
-            .limit(1)
-            .execute()
-        )
-        if not r.data:
-            return None
-        row = r.data[0]
-        if row.get("revoked_at"):
-            return None
-        if datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")) < datetime.now(timezone.utc):
-            return None
-        return row["id"], row["user_id"]
+        def _do() -> tuple[str, str] | None:
+            r = (
+                self.sb.table("refresh_tokens")
+                .select("id, user_id, expires_at, revoked_at")
+                .eq("token_hash", token_hash)
+                .limit(1)
+                .execute()
+            )
+            if not r.data:
+                return None
+            row = r.data[0]
+            if row.get("revoked_at"):
+                return None
+            if datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")) < datetime.now(timezone.utc):
+                return None
+            return row["id"], row["user_id"]
+        return self._retry(_do)
 
     def purge_user_refresh(self, user_id: str) -> None:
-        self.sb.table("refresh_tokens").update(
-            {"revoked_at": datetime.now(timezone.utc).isoformat()}
-        ).eq("user_id", user_id).is_("revoked_at", "null").execute()
+        def _do() -> None:
+            self.sb.table("refresh_tokens").update(
+                {"revoked_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("user_id", user_id).is_("revoked_at", "null").execute()
+        self._retry(_do)
 
 
 def _row_to_user(row: dict[str, Any]) -> User:
@@ -269,6 +386,8 @@ def _row_to_user(row: dict[str, Any]) -> User:
         private_mode_default=bool(row.get("private_mode_default", True)),
         created_at=row.get("created_at"),
         last_login_at=row.get("last_login_at"),
+        disabled=bool(row.get("disabled", False)),
+        login_count=int(row.get("login_count") or 0),
     )
 
 
@@ -304,6 +423,15 @@ class UserStore:
 
     def touch_login(self, user_id: str) -> None:
         self.backend.touch_login(user_id)
+
+    def list_users(self, limit: int = 500) -> list[User]:
+        return self.backend.list_users(limit)
+
+    def set_disabled(self, user_id: str, disabled: bool) -> None:
+        self.backend.set_disabled(user_id, disabled)
+
+    def count_users(self) -> int:
+        return self.backend.count_users()
 
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str:
         return self.backend.store_refresh(user_id, token_hash, expires_at)

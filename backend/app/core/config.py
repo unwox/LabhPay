@@ -81,10 +81,22 @@ class Settings(BaseSettings):
 
     # ---- Admin ----
     ADMIN_KEY: str = ""
+    # Comma-separated list of admin emails. A logged-in user whose email is on
+    # this list gets access to /admin/* endpoints and the admin UI.
+    ADMIN_EMAILS: str = ""
 
     @property
     def allowed_origins_list(self) -> List[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def admin_emails_list(self) -> List[str]:
+        return [e.strip().lower() for e in self.ADMIN_EMAILS.split(",") if e.strip()]
+
+    def is_admin_email(self, email: str | None) -> bool:
+        if not email:
+            return False
+        return email.strip().lower() in self.admin_emails_list
 
     def keys_for(self, provider: str) -> List[str]:
         raw = {

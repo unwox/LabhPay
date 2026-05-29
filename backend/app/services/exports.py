@@ -66,7 +66,12 @@ def _f(x) -> float:
 
 
 def _inr(n: float) -> str:
-    """Indian comma grouping with the ₹ prefix."""
+    """Indian comma grouping with an 'Rs ' prefix.
+
+    We deliberately avoid the ₹ glyph (U+20B9) here because the PDF is
+    rendered with the standard PostScript Helvetica family, which has no
+    glyph for it — every amount would otherwise render as a black square.
+    'Rs' is the conventional fallback used by most Indian bank PDFs."""
     sign = "-" if n < 0 else ""
     n_abs = abs(n)
     integer = int(n_abs)
@@ -80,8 +85,14 @@ def _inr(n: float) -> str:
         )
         s = f"{head},{tail}"
     if decimal >= 0.005:
-        return f"{sign}₹{s}.{int(round(decimal * 100)):02d}"
-    return f"{sign}₹{s}"
+        return f"{sign}Rs {s}.{int(round(decimal * 100)):02d}"
+    return f"{sign}Rs {s}"
+
+
+def _label(value: str) -> str:
+    """Human-readable label for enum values like 'home_services' →
+    'Home Services'."""
+    return value.replace("_", " ").title()
 
 
 def _mask(last4: str | None) -> str:
@@ -305,7 +316,7 @@ def build_summary_pdf(statements: list[Statement]) -> bytes:
         v = cat_totals.get(cat.value, 0.0)
         if v == 0:
             continue
-        cat_rows.append([cat.value.title(), _inr(v), f"{(v / grand) * 100:.0f}%"])
+        cat_rows.append([_label(cat.value), _inr(v), f"{(v / grand) * 100:.0f}%"])
     if len(cat_rows) > 1:
         story.append(Paragraph("Where it went", styles["h2"]))
         story.append(_table(cat_rows, [60 * mm, 40 * mm, 25 * mm]))
@@ -372,7 +383,7 @@ def build_categories_pdf(statements: list[Statement]) -> bytes:
         v = cat_totals.get(cat, 0.0)
         if v == 0:
             continue
-        story.append(Paragraph(f"{cat.value.title()} · {_inr(v)} ({(v / grand) * 100:.0f}%)", styles["h2"]))
+        story.append(Paragraph(f"{_label(cat.value)} · {_inr(v)} ({(v / grand) * 100:.0f}%)", styles["h2"]))
         story.append(Paragraph(f"{cat_counts[cat]} transactions", styles["muted"]))
         sub = sorted(top_merchants[cat].items(), key=lambda kv: kv[1], reverse=True)[:5]
         if sub:

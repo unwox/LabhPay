@@ -26,8 +26,16 @@ from utils.masking import last4_from_pan
 
 # ----- numeric / date patterns -----
 
-# Indian number with optional 'Cr'/'Dr' (case-insensitive), e.g. "12,345.67 Cr"
-_AMOUNT = r"(?P<amt>[\d,]+\.\d{2})\s*(?P<cr>Cr|CR)?"
+# Indian number with optional trailing flag, e.g. "12,345.67 Cr", "344.00 D",
+# "21,937.00 C", "8,709.18 M". SBI Card uses single-letter D/C/M (Debit /
+# Credit / Monthly-EMI); HDFC/ICICI use "Dr"/"Cr". We accept both forms.
+_AMOUNT = r"(?P<amt>[\d,]+\.\d{2})\s*(?P<flag>Cr|CR|cr|Dr|DR|dr|C|D|M)?"
+
+# Field-style amount: the number must start at a digit boundary (so we never
+# match a fragment of a larger number, e.g. ".00" out of "51,773.00"), and
+# must NOT be a percentage (so rate disclosures like "Finance Charges 3.75%
+# p.m." don't poison the finance_charges meta field).
+_FIELD_AMOUNT = r"(?<![\d.,])(?P<amt>[\d,]+\.\d{2})(?!\s*%)"
 # Date forms: 12/06/2024 · 12-06-2024 · 12 Jun 2024 · 12-Jun-24
 _DATE_FORMATS = [
     "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d-%m-%y",
@@ -54,44 +62,44 @@ _CARD_LAST4 = re.compile(r"\b(?:\d[\s-]?){12,15}\d{4}\b")
 
 _KEY_FIELD_PATTERNS: dict[str, re.Pattern[str]] = {
     "total_outstanding": re.compile(
-        r"(?:Total\s+(?:Outstanding|Amount\s+Due|Due)|Statement\s+Balance)[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:Total\s+(?:Outstanding|Amount\s+Due|Due)|Statement\s+Balance)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
     "minimum_due": re.compile(
-        r"(?:Minimum\s+(?:Amount\s+)?Due|Min\.?\s+(?:Amount\s+)?Due)[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:Minimum\s+(?:Amount\s+)?Due|Min\.?\s+(?:Amount\s+)?Due)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
     "available_limit": re.compile(
-        r"(?:Available\s+Credit\s+Limit|Available\s+Limit)[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:Available\s+Credit\s+Limit|Available\s+Limit)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
     "finance_charges": re.compile(
-        r"(?:Finance\s+Charges?|Interest\s+Charges?)[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:Finance\s+Charges?|Interest\s+Charges?)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
     "gst_on_charges": re.compile(
-        r"(?:GST|IGST|CGST.*SGST|Tax\s+on\s+(?:Charges|Interest))[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:GST|IGST|CGST.*SGST|Tax\s+on\s+(?:Charges|Interest))[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
     "late_fee_charges": re.compile(
-        r"(?:Late\s+(?:Payment\s+)?Fee|Late\s+Charges?|Penal\s+Charges?)[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:Late\s+(?:Payment\s+)?Fee|Late\s+Charges?|Penal\s+Charges?)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
     "overlimit_charges": re.compile(
-        r"(?:Over[- ]?Limit\s+(?:Fee|Charges?)|Overlimit\s+Fee)[^\n]{0,40}?"
-        + _AMOUNT,
+        r"(?:Over[- ]?Limit\s+(?:Fee|Charges?)|Overlimit\s+Fee)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
+        + _FIELD_AMOUNT,
         re.IGNORECASE,
     ),
 }
 
 _DUE_DATE_RE = re.compile(
-    r"(?:Payment\s+Due\s+Date|Due\s+Date)[^\n]{0,40}?"
+    r"(?:Payment\s+Due\s+Date|Due\s+Date)[^A-Za-z\n]{0,30}\n?[^A-Za-z\n]{0,30}?"
     r"(\d{1,2}[/-][A-Za-z0-9]{2,4}[/-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})",
     re.IGNORECASE,
 )
@@ -131,6 +139,13 @@ def find_field_amount(text: str, field: str) -> Optional[Decimal]:
     return parse_amount(m.group("amt")) if m else None
 
 
+_EMI_DESC_RE = re.compile(
+    r"\b(emi|equated|flexipay|fp\s*emi|easy\s*emi|installment|"
+    r"pay\s*in\s*emis?|encash)\b",
+    re.IGNORECASE,
+)
+
+
 def iter_transaction_lines(text: str) -> Iterable[Transaction]:
     """Yield Transaction rows extracted via regex on raw text."""
     for m in _TXN_LINE.finditer(text):
@@ -138,8 +153,15 @@ def iter_transaction_lines(text: str) -> Iterable[Transaction]:
         if not d:
             continue
         amt = parse_amount(m.group("amt"))
-        is_debit = (m.group("cr") or "").lower() != "cr"
+        # Credit markers: "Cr"/"CR"/"C" (SBI uses single-letter "C").
+        # Everything else (Dr/DR/D/M/no-flag) is a debit. "M" = monthly EMI
+        # debit on SBI Card.
+        flag = (m.group("flag") or "").lower()
+        is_debit = flag not in ("cr", "c")
         desc = re.sub(r"\s+", " ", m.group("desc")).strip()
+        # SBI marks monthly EMI installments with trailing "M" flag; banks
+        # also embed "EMI" / "Flexipay" / "Pay in EMIs" in the description.
+        is_emi = flag == "m" or bool(_EMI_DESC_RE.search(desc))
         # Skip obviously-not-transactions (totals, headers).
         if not desc or any(kw in desc.lower() for kw in (
             "total", "minimum", "due", "outstanding", "available", "carried"
@@ -155,6 +177,7 @@ def iter_transaction_lines(text: str) -> Iterable[Transaction]:
             merchant_norm=desc.title(),
             amount=amt,
             is_debit=is_debit,
+            is_emi=is_emi,
             category=Category.OTHER,
             extraction_confidence=0.7,
             category_confidence=0.0,

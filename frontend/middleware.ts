@@ -29,5 +29,6 @@ export const config = {
     "/resolution/:path*",
     "/settings/:path*",
     "/export/:path*",
+    "/admin/:path*",
   ],
 };

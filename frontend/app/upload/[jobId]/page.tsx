@@ -113,6 +113,11 @@ export default function JobPage() {
           <Logo size="md" />
         </Link>
         <div className="flex gap-2">
+          <Link href="/dashboard">
+            <Button variant="primary" size="sm">
+              Open dashboard
+            </Button>
+          </Link>
           <Link href="/upload">
             <Button variant="ghost" size="sm">
               Another statement
@@ -181,17 +186,32 @@ export default function JobPage() {
               </p>
             </div>
 
-            <Card elevation="md" tone="mist" className="p-6">
+            <Card elevation="md" tone="mist" className="p-6 md:p-8">
               <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                Coming in Stage 5
+                Your statement is ready
               </p>
-              <h3 className="mt-2 font-display text-2xl text-ink">
-                Spending Intelligence dashboard
+              <h3 className="mt-2 font-display text-2xl md:text-3xl text-ink">
+                See your spending intelligence
               </h3>
-              <p className="mt-2 text-[15px] text-ink-soft leading-relaxed">
+              <p className="mt-3 text-[15px] text-ink-soft leading-relaxed">
                 Category breakdown, recurring subscriptions, hidden charges,
-                top merchants — all on the smart dashboard. Building it next.
+                EMI burden, top merchants — plus insights cards, suspicious-
+                activity alerts, and the LabhPay Assistant to ask questions
+                like &ldquo;how much on Swiggy?&rdquo; or &ldquo;which subscriptions can I
+                cancel?&rdquo;.
               </p>
+              <div className="mt-5 flex gap-3">
+                <Link href="/dashboard">
+                  <Button variant="primary" size="lg">
+                    Open the dashboard →
+                  </Button>
+                </Link>
+                <Link href="/upload">
+                  <Button variant="outline" size="lg">
+                    Upload another statement
+                  </Button>
+                </Link>
+              </div>
             </Card>
           </>
         ) : null}

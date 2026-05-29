@@ -9,6 +9,7 @@ come online in later stages.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.admin import router as admin_router
 from app.api.ai import router as ai_router
 from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
@@ -55,6 +56,7 @@ app.include_router(assistant_router)
 app.include_router(resolution_router)
 app.include_router(exports_router)
 app.include_router(ai_router)
+app.include_router(admin_router)
 
 
 @app.get("/")

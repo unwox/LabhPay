@@ -46,5 +46,6 @@ export function fmtDate(iso: string | null | undefined): string {
 }
 
 export function titleCase(s: string): string {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+  // Replace underscores with spaces first so "home_services" → "Home Services".
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

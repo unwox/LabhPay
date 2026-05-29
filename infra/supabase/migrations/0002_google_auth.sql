@@ -38,6 +38,8 @@ begin
 end$$;
 
 alter table public.users
+  drop constraint if exists users_phone_format_ck;
+alter table public.users
   add constraint users_phone_format_ck
   check (phone_e164 is null or phone_e164 ~ '^\+91[6-9][0-9]{9}$');
 

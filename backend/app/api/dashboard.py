@@ -21,12 +21,22 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 def _list_job_ids(user_id: str) -> list[str]:
-    """Find every result key for this user (keys are: sess:{uid}:result:{jid})."""
-    out: list[str] = []
+    """Find every result key for this user. KEYS first, SCAN fallback —
+    Upstash's TLS SCAN cursor can return empty pages intermittently."""
     prefix = f"sess:{user_id}:result:"
-    for k in _str_client().scan_iter(match=f"{prefix}*", count=200):
-        out.append(k[len(prefix):])
-    return out
+    try:
+        keys = _str_client().keys(f"{prefix}*") or []
+    except Exception:
+        keys = []
+    out = [k[len(prefix):] for k in keys if isinstance(k, str) and k.startswith(prefix)]
+    if not out:
+        try:
+            for k in _str_client().scan_iter(match=f"{prefix}*", count=200):
+                if isinstance(k, str) and k.startswith(prefix):
+                    out.append(k[len(prefix):])
+        except Exception:
+            pass
+    return list(dict.fromkeys(out))
 
 
 @router.get("/summary")

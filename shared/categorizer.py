@@ -30,11 +30,16 @@ _REGEX_RULES: list[tuple[re.Pattern[str], Category]] = [
     (re.compile(r"\b(blinkit|zepto|bigbasket|instamart|dmart|reliance fresh|grofers)\b", re.I), Category.GROCERIES),
     (re.compile(r"\b(amazon|flipkart|myntra|ajio|nykaa|meesho|tatacliq)\b", re.I), Category.SHOPPING),
     (re.compile(r"\b(netflix|spotify|prime video|hotstar|sony liv|zee5|youtube premium)\b", re.I), Category.SUBSCRIPTIONS),
-    (re.compile(r"\b(1mg|pharmeasy|apollo|practo|netmeds)\b", re.I), Category.HEALTHCARE),
-    (re.compile(r"\b(policybazaar|acko|hdfc ergo|sbi life|lic)\b", re.I), Category.INSURANCE),
+    (re.compile(r"\b(1mg|pharmeasy|apollo|practo|netmeds|cipla|sun pharma|max\s+healthcare|fortis|medplus|tata\s+1mg)\b", re.I), Category.HEALTHCARE),
+    # Education: schools, academies, tuition, colleges, universities, online courses
+    (re.compile(r"\b(academy|school|tuition|college|university|institute|coaching|byjus|byju'?s|unacademy|vedantu|whitehat|cuemath|toppr|edx|coursera|udemy|kindergarten|preschool|playschool|montessori)\b", re.I), Category.EDUCATION),
+    # Home services (cleaners, plumbers, salons at home, etc.)
+    (re.compile(r"\b(urbanclap|urban\s*clap|urbancompany|urban\s*company|housejoy|nobroker|sulekha|justdial)\b", re.I), Category.HOME_SERVICES),
+    (re.compile(r"\b(policybazaar|acko|hdfc ergo|sbi life|lic\b|bajaj allianz|tata aig|icici lombard)\b", re.I), Category.INSURANCE),
     (re.compile(r"\b(zerodha|groww|upstox|kuvera|mutual fund|sip\b)\b", re.I), Category.INVESTMENT),
     (re.compile(r"\b(dream11|mpl|rummy|gaming)\b", re.I), Category.GAMING),
-    (re.compile(r"\b(emi|equated)\b", re.I), Category.EMI),
+    # EMI: catch FP EMI, Flexipay, BookFee, transfer-to-installment, etc.
+    (re.compile(r"\b(emi|equated|flexipay|fp\s*emi|easy\s*emi|installment|transfer\s+to\s+flexipay)\b", re.I), Category.EMI),
 ]
 
 

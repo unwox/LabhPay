@@ -15,6 +15,7 @@ How it works:
 We allow-list a few paths that MUST be reachable without a CSRF cookie:
   - /auth/request-otp        (user has no cookie yet)
   - /auth/verify-otp         (the route that sets the cookie)
+  - /auth/google             (same: creates a fresh session)
   - /auth/logout             (best-effort even if cookie is stale)
 
 The cookie+header pair is compared in constant time.
@@ -35,6 +36,7 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 EXEMPT_PATHS = {
     "/auth/request-otp",
     "/auth/verify-otp",
+    "/auth/google",
     "/auth/logout",
 }
 

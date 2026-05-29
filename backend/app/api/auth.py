@@ -62,6 +62,7 @@ class UserOut(BaseModel):
     display_name: str | None = None
     language: str
     private_mode_default: bool
+    is_admin: bool = False
 
 
 def _user_out(u: User) -> UserOut:
@@ -72,6 +73,7 @@ def _user_out(u: User) -> UserOut:
         display_name=u.display_name,
         language=u.language,
         private_mode_default=u.private_mode_default,
+        is_admin=get_settings().is_admin_email(u.email),
     )
 
 
@@ -146,6 +148,8 @@ def verify_otp_route(body: VerifyOtpBody, response: Response) -> dict:
 
     store = get_user_store()
     user = store.upsert_by_phone(phone)
+    if user.disabled:
+        raise HTTPException(status_code=403, detail="This account has been disabled.")
     store.touch_login(user.id)
     _issue_session(response, user)
     audit_emit("auth.login", user=hash_user_id(user.id))
@@ -181,6 +185,8 @@ def google_sign_in(body: GoogleVerifyBody, response: Response) -> dict:
         email=identity.email,
         display_name=identity.name,
     )
+    if user.disabled:
+        raise HTTPException(status_code=403, detail="This account has been disabled.")
     store.touch_login(user.id)
     _issue_session(response, user)
     audit_emit("auth.login.google", user=hash_user_id(user.id))
