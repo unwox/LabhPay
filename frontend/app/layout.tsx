@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { PrivacyBanner } from "@/components/landing/PrivacyBanner";
+import { ConsentGate } from "@/components/consent/ConsentGate";
 import "./globals.css";
 
 const sans = Inter({
@@ -62,6 +63,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <PrivacyBanner />
+          <ConsentGate />
         </AuthProvider>
       </body>
     </html>

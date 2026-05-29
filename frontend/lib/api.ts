@@ -85,7 +85,19 @@ export type ApiUser = {
   language: string;
   private_mode_default: boolean;
   is_admin?: boolean;
+  consent_required?: boolean;
 };
+
+export function acceptConsent(ack: {
+  terms: boolean;
+  privacy: boolean;
+  disclaimer: boolean;
+}) {
+  return api<{ ok: true; version: string }>("/consent/accept", {
+    method: "POST",
+    body: JSON.stringify(ack),
+  });
+}
 
 export function requestOtp(phone: string, first_name?: string) {
   return api<{ ok: true; phone: string; expires_in_minutes: number }>(

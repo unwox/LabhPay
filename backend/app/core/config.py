@@ -9,6 +9,11 @@ from typing import List
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Bump this whenever the disclaimer / privacy / terms text materially changes.
+# A user whose recorded consent_version != this will be re-prompted to consent.
+# Keep in sync with the text shown in the frontend ConsentGate.
+CONSENT_VERSION = "2026-05-29"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(

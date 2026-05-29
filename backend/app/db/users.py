@@ -31,6 +31,8 @@ class User:
     last_login_at: str | None = None
     disabled: bool = False
     login_count: int = 0
+    consent_version: str | None = None
+    consent_at: str | None = None
 
 
 class _Backend:
@@ -49,6 +51,20 @@ class _Backend:
     def list_users(self, limit: int = 500) -> list[User]: ...
     def set_disabled(self, user_id: str, disabled: bool) -> None: ...
     def count_users(self) -> int: ...
+
+    # Consent
+    def record_consent(
+        self,
+        *,
+        user_id: str,
+        version: str,
+        ip_address: str | None,
+        user_agent: str | None,
+        session_jti: str | None,
+        terms: bool,
+        privacy: bool,
+        disclaimer: bool,
+    ) -> None: ...
 
     # Refresh tokens
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str: ...
@@ -149,6 +165,17 @@ class _MemoryBackend(_Backend):
 
     def count_users(self) -> int:
         return len(self._users)
+
+    def record_consent(
+        self, *, user_id: str, version: str, ip_address: str | None,
+        user_agent: str | None, session_jti: str | None,
+        terms: bool, privacy: bool, disclaimer: bool,
+    ) -> None:
+        u = self._users.get(user_id)
+        if u:
+            now = datetime.now(timezone.utc).isoformat()
+            u.consent_version = version
+            u.consent_at = now
 
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str:
         tid = str(uuid.uuid4())
@@ -331,6 +358,31 @@ class _SupabaseBackend(_Backend):
             return int(getattr(r, "count", 0) or 0)
         return self._retry(_do)
 
+    def record_consent(
+        self, *, user_id: str, version: str, ip_address: str | None,
+        user_agent: str | None, session_jti: str | None,
+        terms: bool, privacy: bool, disclaimer: bool,
+    ) -> None:
+        def _do() -> None:
+            now = datetime.now(timezone.utc).isoformat()
+            # Immutable audit row.
+            self.sb.table("user_consents").insert({
+                "user_id": user_id,
+                "consent_version": version,
+                "terms": terms,
+                "privacy": privacy,
+                "disclaimer": disclaimer,
+                "ip_address": ip_address,
+                "user_agent": (user_agent or "")[:500] or None,
+                "session_jti": session_jti,
+            }).execute()
+            # Mirror latest on the user row for the gate check.
+            self.sb.table("users").update({
+                "consent_version": version,
+                "consent_at": now,
+            }).eq("id", user_id).execute()
+        self._retry(_do)
+
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str:
         def _do() -> str:
             r = self.sb.table("refresh_tokens").insert({
@@ -388,6 +440,8 @@ def _row_to_user(row: dict[str, Any]) -> User:
         last_login_at=row.get("last_login_at"),
         disabled=bool(row.get("disabled", False)),
         login_count=int(row.get("login_count") or 0),
+        consent_version=row.get("consent_version"),
+        consent_at=row.get("consent_at"),
     )
 
 
@@ -432,6 +486,9 @@ class UserStore:
 
     def count_users(self) -> int:
         return self.backend.count_users()
+
+    def record_consent(self, **kwargs) -> None:
+        self.backend.record_consent(**kwargs)
 
     def store_refresh(self, user_id: str, token_hash: str, expires_at: datetime) -> str:
         return self.backend.store_refresh(user_id, token_hash, expires_at)

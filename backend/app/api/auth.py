@@ -63,9 +63,11 @@ class UserOut(BaseModel):
     language: str
     private_mode_default: bool
     is_admin: bool = False
+    consent_required: bool = False
 
 
 def _user_out(u: User) -> UserOut:
+    from app.core.config import CONSENT_VERSION
     return UserOut(
         id=u.id,
         phone_e164=u.phone_e164,
@@ -74,6 +76,7 @@ def _user_out(u: User) -> UserOut:
         language=u.language,
         private_mode_default=u.private_mode_default,
         is_admin=get_settings().is_admin_email(u.email),
+        consent_required=(u.consent_version != CONSENT_VERSION),
     )
 
 
