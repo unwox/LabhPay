@@ -95,7 +95,12 @@ def access_cookie_kwargs() -> dict[str, Any]:
         "max_age": s.JWT_ACCESS_TTL_SECONDS,
         "httponly": True,
         "secure": is_prod,
-        "samesite": "lax" if not is_prod else "none",
+        # SameSite=Lax: the frontend now talks to the backend through a
+        # same-origin /api proxy, so the session is first-party. Lax is the
+        # robust choice — SameSite=None gets dropped/partitioned by Safari,
+        # Brave, Firefox ETP and Chrome's 3p-cookie phaseout, which caused
+        # users to be logged out right after signing in.
+        "samesite": "lax",
         "path": "/",
     }
 
@@ -108,7 +113,8 @@ def refresh_cookie_kwargs() -> dict[str, Any]:
         "max_age": s.JWT_REFRESH_TTL_SECONDS,
         "httponly": True,
         "secure": is_prod,
-        "samesite": "lax" if not is_prod else "none",
+        # Same reasoning as the access cookie — first-party, so Lax.
+        "samesite": "lax",
         # path=/ so the cookie is sent to /api/auth/refresh through the
         # frontend same-origin proxy. (Path=/auth would not match /api/auth/*).
         "path": "/",
