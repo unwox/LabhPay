@@ -36,7 +36,7 @@ export function Logo({
         />
       </span>
       <span className={cn("inline-flex items-baseline gap-[2px]", text)}>
-        <span className="font-display italic tracking-tight text-ink">Labh</span>
+        <span className="font-display font-semibold tracking-tight text-ink">Labh</span>
         <span className="font-sans font-medium tracking-tight text-ink">Pay</span>
       </span>
     </span>

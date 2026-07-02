@@ -42,7 +42,7 @@ const config: Config = {
       fontFamily: {
         // Loaded via next/font in layout.tsx and exposed as CSS variables.
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "Helvetica", "Arial"],
-        display: ["var(--font-display)", "ui-serif", "Georgia"],
+        display: ["var(--font-display)", "ui-sans-serif", "system-ui"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo"],
       },
       fontSize: {

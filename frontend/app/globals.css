@@ -59,3 +59,82 @@ body {
   @apply font-display text-ink-muted;
   letter-spacing: 0.02em;
 }
+
+/* ---------- Premium motion & polish ---------- */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Gradient accent text (emerald → teal, nodding to the logo) */
+.text-gradient-accent {
+  background: linear-gradient(100deg, #0E5C49 10%, #14A38B 55%, #2563EB 110%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Slow drifting orbs for hero depth */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(28px, -18px) scale(1.06); }
+  66%      { transform: translate(-22px, 14px) scale(0.97); }
+}
+.orb-drift { animation: drift 14s ease-in-out infinite; }
+.orb-drift-slow { animation: drift 20s ease-in-out infinite reverse; }
+
+/* Infinite logo marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 36s linear infinite;
+}
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.marquee {
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+}
+
+/* Button sheen: a light sweep across primary/accent buttons on hover */
+.btn-sheen { position: relative; overflow: hidden; }
+.btn-sheen::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -80%;
+  width: 55%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,0.28), transparent);
+  transform: skewX(-18deg);
+  transition: left 600ms cubic-bezier(.2,.8,.2,1);
+  pointer-events: none;
+}
+.btn-sheen:hover::after { left: 130%; }
+
+/* Scroll cue in hero */
+@keyframes cue {
+  0%   { transform: translateY(0);   opacity: 0.9; }
+  70%  { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0);   opacity: 0; }
+}
+.scroll-cue::before {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 22px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: cue 1.8s ease-in-out infinite;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .orb-drift, .orb-drift-slow, .marquee-track, .scroll-cue::before {
+    animation: none !important;
+  }
+  .btn-sheen::after { display: none; }
+}

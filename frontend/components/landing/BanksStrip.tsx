@@ -27,10 +27,18 @@ export function BanksStrip() {
 
       <div className="hair my-10" />
 
-      <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-4 md:gap-x-12">
-        {BANKS.map((b) => (
-          <BankLogo key={b} name={b} />
-        ))}
+      {/* Infinite marquee — list duplicated for a seamless loop; pauses on hover */}
+      <div className="marquee overflow-hidden" aria-label="Supported banks">
+        <div className="marquee-track items-center gap-x-12 md:gap-x-16 pr-12 md:pr-16">
+          {[...BANKS, ...BANKS].map((b, i) => (
+            <span
+              key={`${b}-${i}`}
+              className="shrink-0 opacity-80 hover:opacity-100 transition-opacity"
+            >
+              <BankLogo name={b} />
+            </span>
+          ))}
+        </div>
       </div>
     </Section>
   );

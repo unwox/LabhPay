@@ -34,7 +34,7 @@ export function FinalCTA() {
                   size="lg"
                   className="!bg-transparent !text-paper !border-white/25 hover:!bg-white/10"
                 >
-                  Try the Tax Toolkit
+                  Cut my tax bill
                 </Button>
               </Link>
             </div>

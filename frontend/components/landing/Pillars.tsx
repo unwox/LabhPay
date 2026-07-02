@@ -39,10 +39,10 @@ export function Pillars() {
           <Card
             icon={Receipt}
             tag="Live"
-            title="Tax Toolkit"
+            title="Tax Saver"
             body="Upload your Form 16 to compare the old vs new regime, estimate your refund, spot missed deductions and get an ITR-ready summary."
             href="/tax"
-            cta="Open Tax Toolkit"
+            cta="Open Tax Saver"
           />
         </Reveal>
         <Reveal delay={240}>

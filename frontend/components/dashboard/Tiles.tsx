@@ -364,11 +364,11 @@ export function EmptyState({ onUpload }: { onUpload?: () => void }) {
         />
         <HubCard
           icon={Receipt}
-          badge="Form 16 & taxes"
-          title="Tax Toolkit"
-          body="Upload your Form 16, payslip and 26AS. Compare old vs new regime, estimate your refund, and get an ITR-ready summary."
+          badge="Pay less tax"
+          title="Tax Saver"
+          body="A step-by-step plan to legally cut your tax — 80C, NPS, 80D, the right regime. Upload your Form 16 to auto-fill."
           href="/tax"
-          cta="Open Tax Toolkit"
+          cta="Open Tax Saver"
         />
         <HubCard
           icon={Calculator}

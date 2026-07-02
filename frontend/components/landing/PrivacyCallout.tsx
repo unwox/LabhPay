@@ -32,7 +32,7 @@ export function PrivacyCallout() {
             </span>
             <h2 className="mt-5 font-display text-display-sm md:text-display-md text-paper">
               Your statements are processed securely and{" "}
-              <em className="italic text-accent-soft">
+              <em className="not-italic text-accent">
                 automatically deleted
               </em>{" "}
               after your session ends.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileSearch, Receipt, Calculator, ArrowRight } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { CountUp } from "@/components/ui/count-up";
 
 /**
  * The core "what LabhPay does" section — one rich, editorial row per pillar,
@@ -34,19 +35,19 @@ export function Features() {
           href="/dashboard?upload=1"
           cta="Analyze a statement"
           visual={
-            <MiniCard tone="ink" tag="Money leaks · SBI Card" big="₹4,290" bigNote="leaked this cycle" rows={[["Interest & GST", "₹1,998"], ["3 subscriptions", "₹899/mo"]]} />
+            <MiniCard tone="ink" tag="Money leaks · SBI Card" big={4290} bigNote="leaked this cycle" rows={[["Interest & GST", "₹1,998"], ["3 subscriptions", "₹899/mo"]]} />
           }
         />
         <Row
           reverse
           icon={Receipt}
-          eyebrow="Tax Toolkit"
-          title="Your Form 16, in plain English."
-          body="Upload your Form 16, payslip and 26AS — we read them all. Compare old vs new regime, see your refund or what you owe, and download an ITR-ready summary."
+          eyebrow="Tax Saver"
+          title="Pay less tax, legally."
+          body="Answer a few questions — or upload your Form 16 to auto-fill — and get a rupee-by-rupee plan: 80C, NPS, health cover, employer NPS, and the right regime."
           href="/tax"
-          cta="Open the Tax Toolkit"
+          cta="Plan my tax savings"
           visual={
-            <MiniCard tone="emerald" tag="Tax Toolkit · FY 2025-26" big="₹18,400" bigNote="refund due to you" rows={[["New regime tax", "₹71,600"], ["Saved vs old", "₹46,800"]]} />
+            <MiniCard tone="emerald" tag="Tax Saver · FY 2025-26" big={46800} bigNote="you could still save this year" rows={[["New regime tax", "₹71,600"], ["Saved vs old", "₹46,800"]]} />
           }
         />
         <Row
@@ -57,7 +58,7 @@ export function Features() {
           href="/calculators"
           cta="Open the calculators"
           visual={
-            <MiniCard tone="paper" tag="EMI Calculator" big="₹26,035" bigNote="per month" rows={[["₹30L home loan", "8.5% p.a."], ["Total interest", "₹32.5L"]]} />
+            <MiniCard tone="paper" tag="EMI Calculator" big={26035} bigNote="per month" rows={[["₹30L home loan", "8.5% p.a."], ["Total interest", "₹32.5L"]]} />
           }
         />
       </div>
@@ -120,7 +121,7 @@ function MiniCard({
 }: {
   tone: "ink" | "emerald" | "paper";
   tag: string;
-  big: string;
+  big: number;
   bigNote: string;
   rows: [string, string][];
 }) {
@@ -138,7 +139,7 @@ function MiniCard({
       <span className={`inline-flex text-[10px] uppercase tracking-eyebrow px-2.5 py-1 rounded-full ${chip}`}>
         {tag}
       </span>
-      <p className="mt-6 font-display text-5xl tabular-nums leading-none">{big}</p>
+      <p className="mt-6 font-display text-5xl tabular-nums leading-none"><CountUp value={big} prefix="₹" duration={1300} /></p>
       <p className={`mt-2 text-sm ${sub}`}>{bigNote}</p>
       <div className={`mt-6 border-t ${border} pt-3 space-y-2`}>
         {rows.map(([l, r], i) => (

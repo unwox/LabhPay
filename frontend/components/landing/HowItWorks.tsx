@@ -7,7 +7,7 @@ export function HowItWorks() {
       <div className="max-w-2xl">
         <Eyebrow>How it works</Eyebrow>
         <SectionTitle className="mt-4">
-          Three steps. <em className="italic">Then quiet clarity.</em>
+          Three steps. <span className="text-ink-soft">Then quiet clarity.</span>
         </SectionTitle>
         <SectionLede className="mt-5">
           You upload. We read. You decide. Every document is processed in memory,

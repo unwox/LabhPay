@@ -17,7 +17,7 @@ export function Footer() {
           title="Product"
           links={[
             { label: "Upload statement", href: "/dashboard?upload=1" },
-            { label: "Tax Toolkit (Form 16)", href: "/tax" },
+            { label: "Tax Saver", href: "/tax" },
             { label: "Calculators", href: "/calculators" },
             { label: "Credit card guides", href: "/blog" },
             { label: "Sign in", href: "/login" },

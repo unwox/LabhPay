@@ -32,7 +32,7 @@ export default function PrivacyPage() {
             <Eyebrow>Privacy promise</Eyebrow>
             <h1 className="mt-5 font-display text-display-md md:text-display-lg text-ink">
               Your statements are processed securely and{" "}
-              <em className="italic text-accent">automatically deleted</em>{" "}
+              <em className="not-italic text-accent">automatically deleted</em>{" "}
               after your session ends.
             </h1>
             <p className="mt-6 max-w-2xl text-lg md:text-xl text-ink-soft leading-relaxed">

@@ -2,56 +2,73 @@ import type { Metadata } from "next";
 import { ChevronDown } from "lucide-react";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
-import { TaxToolkit } from "@/components/tax/TaxToolkit";
+import { TaxSaver } from "@/components/tax/TaxSaver";
 
 const SITE = "https://labhpay.com";
 
 export const metadata: Metadata = {
-  title: "Form 16 Tax Calculator — Old vs New Regime & Refund (FY 2025-26)",
+  title: "Tax Saver — How to Pay Less Income Tax, Legally (FY 2025-26)",
   description:
-    "Free Form 16 tax toolkit for India: compare old vs new regime, estimate your income tax refund or amount payable, spot missed deductions, and get an ITR-ready summary. Upload Form 16 to auto-fill.",
+    "Free tax-saving planner for India. Enter your salary and see exactly how much more tax you can save — 80C, NPS, 80D, employer NPS — with a step-by-step plan. Upload Form 16 to auto-fill.",
   alternates: { canonical: "/tax" },
   keywords: [
-    "form 16",
-    "form 16 tax calculator",
+    "how to save tax",
+    "tax saving options for salaried",
+    "save income tax india",
+    "80c investment options",
+    "nps tax benefit 80ccd(1b)",
+    "80d deduction",
+    "old vs new tax regime",
     "income tax refund calculator",
-    "old vs new tax regime calculator",
-    "itr calculator",
-    "how to file itr",
-    "tax saving calculator",
+    "form 16",
   ],
   openGraph: {
-    title: "Form 16 Tax Toolkit — Old vs New Regime & Refund",
+    title: "Tax Saver — Pay Less Income Tax, Legally",
     description:
-      "Upload your Form 16 or enter your numbers to compare regimes, estimate your refund, and get an ITR-ready summary. Free, private, auto-deleted.",
+      "See exactly how much more tax you can save this year, with a step-by-step plan. Free, private, auto-deleted.",
     type: "website",
     url: `${SITE}/tax`,
     siteName: "LabhPay",
     locale: "en_IN",
   },
-  twitter: { card: "summary_large_image", title: "Form 16 Tax Toolkit — LabhPay" },
+  twitter: { card: "summary_large_image", title: "Tax Saver — LabhPay" },
 };
 
 const FAQS = [
   {
-    q: "How do I use my Form 16 to calculate tax?",
-    a: "Read the key figures from your Form 16 Part B — gross salary, deductions (80C, 80D, etc.) and TDS deducted — and enter them here, or upload the Form 16 PDF to auto-fill. The toolkit then compares the old and new regimes and estimates your refund or tax payable.",
+    q: "How can I save income tax on my salary?",
+    a: "The main legal levers for salaried people are: Section 80C investments up to ₹1.5 lakh (EPF, ELSS, PPF, life insurance), an extra ₹50,000 in NPS under 80CCD(1B), health-insurance premiums under 80D, HRA if you pay rent, and employer NPS under 80CCD(2). This planner checks each one against your numbers and shows the rupee saving.",
   },
   {
-    q: "Will I get a tax refund?",
-    a: "If the tax already deducted (TDS) shown on your Form 16 is more than your actual tax liability for the year, you're due a refund. This toolkit estimates that difference. The final refund is determined when you file your ITR on the income tax portal.",
+    q: "Do 80C and NPS help in the new tax regime?",
+    a: "Mostly no — 80C, 80D, HRA and your own NPS (80CCD(1B)) only reduce tax under the old regime. The big exception is employer NPS under Section 80CCD(2), which is deductible in BOTH regimes. The planner accounts for all of this automatically.",
   },
   {
-    q: "Should I choose the old or new tax regime?",
-    a: "It depends on your deductions. The new regime usually wins with few deductions (higher standard deduction, rebate up to ₹12 lakh); the old regime can win if you fully use 80C, 80D, HRA and home loan interest. The toolkit shows both and recommends the lower-tax option.",
+    q: "Which is better, the old or new tax regime?",
+    a: "It depends on how many deductions you actually use. The planner computes both regimes for your exact numbers — including after your potential investments — and always shows the cheaper path.",
   },
   {
-    q: "Is my Form 16 safe to upload?",
-    a: "Yes. Your Form 16 is processed in memory to read the numbers and is never stored. We don't keep your PAN or name. You always review the figures before anything is computed.",
+    q: "Can I upload my Form 16 or payslip?",
+    a: "Yes — upload your Form 16, salary slip, Form 12BA or 26AS and the planner auto-fills your numbers from them. Documents are read in memory, never stored, and you review every figure before anything is computed.",
+  },
+  {
+    q: "Is this the same as filing my ITR?",
+    a: "No. This planner tells you how to reduce tax and what to expect (refund or payable). You still file at incometax.gov.in — the planner gives you a downloadable summary that makes filing (or handing off to a CA) easy.",
   },
 ];
 
-export default function TaxToolkitPage() {
+export default function TaxSaverPage() {
+  const appLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "LabhPay Tax Saver",
+    url: `${SITE}/tax`,
+    applicationCategory: "FinanceApplication",
+    operatingSystem: "Web",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+    description:
+      "Tax-saving planner for India: see how much more tax you can save with 80C, NPS, 80D and employer NPS — with a step-by-step plan.",
+  };
   const faqLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -61,17 +78,6 @@ export default function TaxToolkitPage() {
       acceptedAnswer: { "@type": "Answer", text: f.a },
     })),
   };
-  const appLd = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: "LabhPay Form 16 Tax Toolkit",
-    url: `${SITE}/tax`,
-    applicationCategory: "FinanceApplication",
-    operatingSystem: "Web",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-    description:
-      "Compare old vs new tax regime, estimate your refund, and get an ITR-ready summary from your Form 16.",
-  };
 
   return (
     <main className="relative">
@@ -79,23 +85,24 @@ export default function TaxToolkitPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
 
       <Nav />
-      <section className="px-[var(--site-gutter)] pt-28 md:pt-36 pb-16 max-w-4xl mx-auto">
-        <p className="text-[11px] uppercase tracking-eyebrow text-accent-ink">Tax Toolkit · FY 2025-26</p>
-        <h1 className="mt-3 font-display text-display-sm md:text-5xl text-ink leading-[1.05]">
-          Your Form 16, decoded.
+      <section className="px-[var(--site-gutter)] pt-28 md:pt-36 pb-16 max-w-5xl mx-auto">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-accent-ink">
+          Tax Saver · FY 2025-26
+        </p>
+        <h1 className="mt-3 font-display text-display-sm md:text-display-md text-ink leading-[1.02]">
+          Pay less tax. <span className="text-gradient-accent">Legally.</span>
         </h1>
-        <p className="mt-4 text-lg text-ink-soft max-w-2xl">
-          Compare the old vs new tax regime, see your estimated refund or tax
-          payable, find deductions you&rsquo;re missing, and download an
-          ITR-ready summary. Upload your Form 16 to auto-fill — or just type your
-          numbers. Nothing is stored.
+        <p className="mt-4 text-lg md:text-xl text-ink-soft max-w-2xl">
+          Answer a few questions — or upload your Form 16 / payslip to auto-fill —
+          and get a step-by-step plan showing exactly how many rupees you can
+          still save this year. Nothing is stored.
         </p>
 
-        <div className="mt-8">
-          <TaxToolkit />
+        <div className="mt-9">
+          <TaxSaver />
         </div>
 
-        <section className="mt-12">
+        <section className="mt-14">
           <h2 className="font-display text-2xl md:text-3xl text-ink">
             Frequently asked questions
           </h2>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/lib/auth-context";
 import { PrivacyBanner } from "@/components/landing/PrivacyBanner";
@@ -12,10 +12,9 @@ const sans = Inter({
   display: "swap",
 });
 
-const display = Instrument_Serif({
+const display = Space_Grotesk({
   subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
+  weight: ["500", "600", "700"],
   variable: "--font-display",
   display: "swap",
 });

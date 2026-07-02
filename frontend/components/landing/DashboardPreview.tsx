@@ -10,7 +10,7 @@ export function DashboardPreview() {
         <div className="lg:col-span-5">
           <Eyebrow>Spending Intelligence</Eyebrow>
           <SectionTitle className="mt-4">
-            A calm view of every <em className="italic">rupee</em>.
+            A calm view of every <em className="not-italic text-accent">rupee</em>.
           </SectionTitle>
           <SectionLede className="mt-5">
             Statements normalised across banks. Categories you actually

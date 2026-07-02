@@ -1,40 +1,63 @@
 import Link from "next/link";
 import { FileText, Receipt, Calculator, ArrowUpRight } from "lucide-react";
-import { Section, Eyebrow } from "@/components/ui/section";
+import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
+import { CountUp } from "@/components/ui/count-up";
 
 export function Hero() {
   return (
-    <Section size="xl" bleed className="overflow-hidden pt-32 md:pt-36 bg-ivory-fade">
-      {/* Decorative emerald glow */}
+    <Section size="xl" bleed className="overflow-hidden pt-32 md:pt-40 pb-10 bg-ivory-fade">
+      {/* Drifting depth orbs */}
       <div
         aria-hidden
-        className="orb"
+        className="orb orb-drift"
         style={{
-          background:
-            "radial-gradient(closest-side, rgba(14,92,73,0.18), rgba(14,92,73,0))",
-          width: 560,
-          height: 560,
-          top: -140,
-          left: "50%",
-          transform: "translateX(-50%)",
+          background: "radial-gradient(closest-side, rgba(14,92,73,0.20), rgba(14,92,73,0))",
+          width: 620, height: 620, top: -160, left: "58%",
+        }}
+      />
+      <div
+        aria-hidden
+        className="orb orb-drift-slow"
+        style={{
+          background: "radial-gradient(closest-side, rgba(37,99,235,0.10), rgba(37,99,235,0))",
+          width: 480, height: 480, top: 220, left: "-6%",
         }}
       />
 
-      <div className="mx-auto max-w-site px-[var(--site-gutter)] grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-        {/* Copy */}
-        <div className="lg:col-span-6 relative animate-fade-rise">
-          <Eyebrow>Privacy-first · Made for India</Eyebrow>
-          <h1 className="mt-5 font-display text-display-md md:text-display-lg lg:text-display-xl text-ink">
-            Find the money you&rsquo;re <em className="italic text-accent">losing</em>.
-          </h1>
-          <p className="mt-6 max-w-xl text-lg md:text-xl text-ink-soft leading-relaxed">
-            Upload one statement and LabhPay shows you exactly where your money
-            leaks &mdash; interest, hidden fees, forgotten subscriptions &mdash; and
-            how to get it back. Private, and auto-deleted after your session.
+      <div className="mx-auto max-w-site px-[var(--site-gutter)] grid lg:grid-cols-12 gap-14 lg:gap-8 items-center">
+        {/* Copy — staggered entrance */}
+        <div className="lg:col-span-6 relative">
+          <p
+            className="animate-fade-rise inline-flex items-center gap-2 rounded-full border border-ink/10 bg-paper-card/70 px-3.5 py-1.5 text-[12px] text-ink-soft"
+            style={{ animationDelay: "0ms" }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+            Privacy-first · Auto-deleted after your session
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center gap-3">
+          <h1
+            className="animate-fade-rise mt-6 font-display text-display-md md:text-display-lg lg:text-display-xl text-ink leading-[0.98]"
+            style={{ animationDelay: "90ms" }}
+          >
+            Find the money
+            <br />
+            you&rsquo;re <span className="text-gradient-accent">losing</span>.
+          </h1>
+
+          <p
+            className="animate-fade-rise mt-6 max-w-xl text-lg md:text-xl text-ink-soft leading-relaxed"
+            style={{ animationDelay: "180ms" }}
+          >
+            Upload one statement and LabhPay shows exactly where your money
+            leaks — interest, hidden fees, forgotten subscriptions — and how to
+            get it back. Taxes and calculators included.
+          </p>
+
+          <div
+            className="animate-fade-rise mt-9 flex flex-wrap items-center gap-3"
+            style={{ animationDelay: "270ms" }}
+          >
             <Link href="/dashboard?upload=1">
               <Button variant="primary" size="lg">
                 Analyze a statement
@@ -42,58 +65,60 @@ export function Hero() {
             </Link>
             <Link href="/tax">
               <Button variant="outline" size="lg">
-                Try the Tax Toolkit
+                Cut my tax bill
               </Button>
             </Link>
           </div>
 
-          <p className="mt-6 text-sm text-ink-muted">
-            Statements · Tax &amp; Form 16 · Income-tax, EMI, SIP &amp; HRA calculators
+          <p
+            className="animate-fade-rise mt-7 text-sm text-ink-muted"
+            style={{ animationDelay: "360ms" }}
+          >
+            Statements · Form 16 &amp; taxes · Income-tax, EMI, SIP &amp; HRA calculators
           </p>
         </div>
 
-        {/* Floating capability cards */}
-        <div className="lg:col-span-6 relative h-[440px] md:h-[500px]">
+        {/* Floating result cards with live counters */}
+        <div className="lg:col-span-6 relative h-[460px] md:h-[520px]">
           <FloatCard
             className="right-0 md:right-4 top-2"
-            delay="0.15s"
+            delay="150ms"
             tilt="-5deg"
             tone="ink"
             icon={FileText}
             tag="Statement Intelligence"
             title="Hidden charges found"
-            big="₹2,142"
-            rows={[
-              ["Finance / interest", "₹1,998"],
-              ["GST on charges", "₹144"],
-            ]}
+            value={2142}
+            rows={[["Finance / interest", "₹1,998"], ["GST on charges", "₹144"]]}
           />
           <FloatCard
-            className="left-0 md:left-2 top-36 md:top-40"
-            delay="0.5s"
+            className="left-0 md:left-2 top-40 md:top-44"
+            delay="450ms"
             tilt="4deg"
             tone="emerald"
             icon={Receipt}
-            tag="Tax Toolkit · Form 16"
-            title="New regime — refund due"
-            big="₹18,400"
-            rows={[
-              ["New regime tax", "₹71,600"],
-              ["You saved vs old", "₹46,800"],
-            ]}
+            tag="Tax Saver · Form 16"
+            title="You could still save"
+            value={46800}
+            rows={[["New regime tax", "₹71,600"], ["Saved vs old", "₹46,800"]]}
           />
           <FloatCard
-            className="right-6 md:right-16 top-[19rem] md:top-[21rem]"
-            delay="0.85s"
+            className="right-6 md:right-16 top-[20.5rem] md:top-[22.5rem]"
+            delay="750ms"
             tilt="-2deg"
             tone="paper"
             icon={Calculator}
             tag="EMI Calculator"
             title="₹30L home loan · 20y"
-            big="₹26,035"
+            value={26035}
             rows={[["per month", "8.5% p.a."]]}
           />
         </div>
+      </div>
+
+      {/* Scroll cue */}
+      <div className="relative mt-10 hidden md:flex justify-center text-ink-muted">
+        <span className="scroll-cue" aria-hidden />
       </div>
     </Section>
   );
@@ -107,7 +132,7 @@ function FloatCard({
   icon: Icon,
   tag,
   title,
-  big,
+  value,
   rows,
 }: {
   className: string;
@@ -117,7 +142,7 @@ function FloatCard({
   icon: typeof FileText;
   tag: string;
   title: string;
-  big: string;
+  value: number;
   rows: [string, string][];
 }) {
   const toneCls =
@@ -131,10 +156,13 @@ function FloatCard({
   const rowBorder = tone === "paper" ? "border-ink/8" : "border-white/15";
 
   return (
-    <div className={`absolute w-[260px] md:w-[300px] animate-fade-rise ${className}`} style={{ animationDelay: delay } as React.CSSProperties}>
+    <div
+      className={`absolute w-[264px] md:w-[304px] animate-fade-rise ${className}`}
+      style={{ animationDelay: delay } as React.CSSProperties}
+    >
       <div className="animate-float-slow" style={{ animationDelay: delay } as React.CSSProperties}>
         <div
-          className={`rounded-3xl shadow-card-xl p-5 ${toneCls}`}
+          className={`rounded-3xl shadow-card-xl p-5 transition-transform duration-500 hover:scale-[1.03] hover:rotate-0 ${toneCls}`}
           style={{ transform: `rotate(${tilt})` }}
         >
           <div className="flex items-center justify-between">
@@ -144,7 +172,9 @@ function FloatCard({
             <ArrowUpRight size={16} className={sub} />
           </div>
           <p className={`mt-4 text-sm ${sub}`}>{title}</p>
-          <p className="mt-1 font-display text-4xl tabular-nums">{big}</p>
+          <p className="mt-1 font-display text-4xl tabular-nums">
+            <CountUp value={value} prefix="₹" duration={1400} />
+          </p>
           <div className={`mt-4 border-t ${rowBorder} pt-2 space-y-1.5`}>
             {rows.map(([l, r], i) => (
               <div key={i} className="flex items-center justify-between text-[13px]">

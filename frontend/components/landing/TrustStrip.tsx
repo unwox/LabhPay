@@ -1,4 +1,5 @@
 import { ShieldCheck, Lock, MapPin } from "lucide-react";
+import { Reveal } from "./Reveal";
 
 const items = [
   {
@@ -22,10 +23,10 @@ export function TrustStrip() {
   return (
     <div className="mx-auto max-w-site px-[var(--site-gutter)]">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        {items.map((it) => (
+        {items.map((it, i) => (
+          <Reveal key={it.title} delay={i * 110}>
           <div
-            key={it.title}
-            className="rounded-2xl bg-paper-card p-5 md:p-6 shadow-card-sm flex items-start gap-4"
+            className="h-full rounded-2xl bg-paper-card p-5 md:p-6 shadow-card-sm flex items-start gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card"
           >
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
               <it.icon size={18} strokeWidth={1.75} />
@@ -39,6 +40,7 @@ export function TrustStrip() {
               </p>
             </div>
           </div>
+          </Reveal>
         ))}
       </div>
     </div>

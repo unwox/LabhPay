@@ -7,16 +7,16 @@ import { cn } from "@/lib/utils";
  * Variants tuned in Stage 2 alongside the rest of the design system.
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium tracking-tight transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium tracking-tight transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        // Primary: deep ink pill — anchor of every CTA.
+        // Primary: deep ink pill — anchor of every CTA. Sheen sweep on hover.
         primary:
-          "bg-ink text-paper hover:bg-ink-soft shadow-card-sm hover:shadow-card",
+          "btn-sheen bg-ink text-paper hover:bg-ink-soft shadow-card-sm hover:shadow-card hover:-translate-y-px",
         // Accent: emerald — used sparingly for high-intent CTAs.
         accent:
-          "bg-accent text-paper hover:bg-accent-ink shadow-card-sm hover:shadow-card",
+          "btn-sheen bg-accent text-paper hover:bg-accent-ink shadow-card-sm hover:shadow-card hover:-translate-y-px",
         // Outline: hairline border on paper.
         outline:
           "border border-ink/12 bg-paper text-ink hover:bg-accent-mist hover:border-ink/20",
