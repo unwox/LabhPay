@@ -17,6 +17,9 @@ export function Footer() {
           title="Product"
           links={[
             { label: "Upload statement", href: "/dashboard?upload=1" },
+            { label: "Tax Toolkit (Form 16)", href: "/tax" },
+            { label: "Calculators", href: "/calculators" },
+            { label: "Credit card guides", href: "/blog" },
             { label: "Sign in", href: "/login" },
             { label: "How it works", href: "/#how" },
           ]}
@@ -24,9 +27,10 @@ export function Footer() {
         <FooterCol
           title="Trust"
           links={[
-            { label: "Privacy", href: "/privacy" },
-            { label: "Security", href: "/privacy#security" },
-            { label: "Contact", href: "mailto:hello@labhpay.com" },
+            { label: "Privacy promise", href: "/privacy" },
+            { label: "Privacy Policy", href: "/privacy-policy" },
+            { label: "Terms of Service", href: "/terms" },
+            { label: "Contact", href: "mailto:labhpay@gmail.com" },
           ]}
         />
       </div>

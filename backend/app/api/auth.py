@@ -126,8 +126,21 @@ def request_otp(body: RequestOtpBody, request: Request) -> dict:
         check_request_rate(phone_e164=phone, client_ip=get_client_ip(request))
     except RateLimitError as e:
         raise HTTPException(status_code=429, detail=str(e)) from e
+    except Exception:
+        # OTP store/rate-limit lives in Redis; if it's down, point the user at
+        # Google sign-in (which doesn't need Redis) rather than failing hard.
+        raise HTTPException(
+            status_code=503,
+            detail="OTP login is temporarily unavailable. Please sign in with Google instead.",
+        )
 
-    otp = store_new_otp(phone_e164=phone)
+    try:
+        otp = store_new_otp(phone_e164=phone)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="OTP login is temporarily unavailable. Please sign in with Google instead.",
+        )
     sent = send_login_otp(phone_e164=phone, otp=otp, first_name=body.first_name)
     if not sent:
         # We still consider the request OK (don't leak failure modes) but flag in detail
@@ -146,7 +159,14 @@ def verify_otp_route(body: VerifyOtpBody, response: Response) -> dict:
     except InvalidPhoneError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    if not verify_otp(phone_e164=phone, otp=body.otp):
+    try:
+        ok = verify_otp(phone_e164=phone, otp=body.otp)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="OTP login is temporarily unavailable. Please sign in with Google instead.",
+        )
+    if not ok:
         raise HTTPException(status_code=401, detail="Invalid or expired code.")
 
     store = get_user_store()

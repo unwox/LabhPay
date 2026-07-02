@@ -100,27 +100,42 @@ async def upload_statement(
     job_id = uuid.uuid4().hex
     needs_pw = is_password_protected(data)
 
-    store_pdf(
-        user_id=claims.sub,
-        job_id=job_id,
-        filename=file.filename or "statement.pdf",
-        data=data,
-    )
+    # The statement pipeline needs its temporary store + queue (Redis). If that
+    # is unavailable (e.g. provider outage or quota exhausted), fail softly with
+    # a clear 503 instead of a raw 500 — the rest of the app stays usable.
+    try:
+        import redis as _redis  # noqa: PLC0415
 
-    initial_stage = JobStage.NEEDS_PASSWORD if needs_pw else JobStage.QUEUED
-    set_status(
-        JobStatus(
+        store_pdf(
+            user_id=claims.sub,
             job_id=job_id,
-            stage=initial_stage,
-            progress=0.0 if not needs_pw else 0.05,
-            message=(
-                "This statement is password-protected."
-                if needs_pw
-                else "Queued for processing"
+            filename=file.filename or "statement.pdf",
+            data=data,
+        )
+
+        initial_stage = JobStage.NEEDS_PASSWORD if needs_pw else JobStage.QUEUED
+        set_status(
+            JobStatus(
+                job_id=job_id,
+                stage=initial_stage,
+                progress=0.0 if not needs_pw else 0.05,
+                message=(
+                    "This statement is password-protected."
+                    if needs_pw
+                    else "Queued for processing"
+                ),
             ),
-        ),
-        user_id=claims.sub,
-    )
+            user_id=claims.sub,
+        )
+    except _redis.exceptions.RedisError:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Statement processing is temporarily unavailable — we're a bit "
+                "over capacity right now. Please try again in a few minutes. "
+                "(Everything else on LabhPay still works.)"
+            ),
+        )
 
     # Stage 10: respect Private Mode. If the user opted in (per-upload or
     # via their account default), mark this job so the cleanup worker
@@ -136,7 +151,16 @@ async def upload_statement(
         mark_private(user_id=claims.sub, job_id=job_id)
 
     if not needs_pw:
-        _enqueue(user_id=claims.sub, job_id=job_id)
+        try:
+            _enqueue(user_id=claims.sub, job_id=job_id)
+        except Exception:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Statement processing is temporarily unavailable — we're a "
+                    "bit over capacity. Please try again in a few minutes."
+                ),
+            )
 
     audit_emit(
         "statements.upload",

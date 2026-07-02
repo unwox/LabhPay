@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/lib/auth-context";
 import { PrivacyBanner } from "@/components/landing/PrivacyBanner";
 import { ConsentGate } from "@/components/consent/ConsentGate";
@@ -21,27 +22,59 @@ const display = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "LabhPay — Understand your credit card bills",
+    default: "LabhPay — Your Private Financial Co-pilot for India",
     template: "%s · LabhPay",
   },
   description:
-    "A smart financial intelligence platform for Indian credit card users. Privacy-first. Auto-deleted after your session.",
+    "LabhPay is a privacy-first financial assistant for India: analyze credit card & bank statements for hidden charges and EMIs, and use free income tax, EMI, SIP and HRA calculators. Auto-deleted.",
   metadataBase: new URL("https://labhpay.com"),
   applicationName: "LabhPay",
   authors: [{ name: "LabhPay" }],
+  creator: "LabhPay",
+  publisher: "LabhPay",
+  category: "finance",
   keywords: [
+    "credit card statement analyzer",
     "credit card statement analysis",
+    "analyze credit card statement online",
+    "understand credit card bill",
+    "hidden charges on credit card",
+    "credit card finance charges",
+    "credit card spending tracker",
+    "recurring subscriptions tracker",
+    "credit card EMI tracker",
+    "credit utilization checker",
+    "how to read SBI credit card statement",
+    "how to read HDFC credit card statement",
+    "how to read ICICI credit card statement",
+    "minimum amount due meaning",
     "Indian credit cards",
-    "spending insights",
-    "privacy-first finance",
   ],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
-    title: "LabhPay — Understand your credit card bills",
+    title: "Credit Card Statement Analyzer for India | LabhPay",
     description:
-      "Intelligent insights for Indian credit card statements. Your data is processed securely and deleted after your session.",
+      "Upload your Indian credit card statement and instantly see hidden charges, recurring subscriptions, EMIs and where your money goes. Private & auto-deleted.",
     type: "website",
     url: "https://labhpay.com",
     siteName: "LabhPay",
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Credit Card Statement Analyzer for India | LabhPay",
+    description:
+      "Spot hidden charges, recurring subscriptions and EMIs in your credit card statement. Free, private, auto-deleted.",
   },
 };
 
@@ -57,14 +90,41 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const orgLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "LabhPay",
+    url: "https://labhpay.com",
+    logo: "https://labhpay.com/opengraph-image",
+    description:
+      "LabhPay is a privacy-first credit card statement analyzer for India that surfaces hidden charges, recurring subscriptions, EMIs and spending insights.",
+    areaServed: "IN",
+  };
+  const siteLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "LabhPay",
+    url: "https://labhpay.com",
+    inLanguage: "en-IN",
+  };
+
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteLd) }}
+        />
         <AuthProvider>
           {children}
           <PrivacyBanner />
           <ConsentGate />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

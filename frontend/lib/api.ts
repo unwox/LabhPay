@@ -99,6 +99,75 @@ export function acceptConsent(ack: {
   });
 }
 
+export type Form16Fields = {
+  gross_salary: number;
+  hra_exempt: number;
+  lta_exempt: number;
+  standard_deduction: number;
+  ded_80c: number;
+  ded_80d: number;
+  nps_80ccd1b: number;
+  nps_employer_80ccd2: number;
+  home_loan_interest: number;
+  other_deductions: number;
+  other_income: number;
+  capital_gains: number;
+  tds: number;
+};
+
+/**
+ * Merge tax fields extracted from several documents. Each document reveals a
+ * different piece (gross from Form 16, employer NPS from the payslip,
+ * perquisites from 12BA, total TDS from 26AS, other income from AIS…). For each
+ * field we take the largest non-zero value seen — the most complete figure.
+ */
+export function mergeForm16Fields(list: Form16Fields[]): Form16Fields {
+  const keys: (keyof Form16Fields)[] = [
+    "gross_salary",
+    "hra_exempt",
+    "lta_exempt",
+    "standard_deduction",
+    "ded_80c",
+    "ded_80d",
+    "nps_80ccd1b",
+    "nps_employer_80ccd2",
+    "home_loan_interest",
+    "other_deductions",
+    "other_income",
+    "capital_gains",
+    "tds",
+  ];
+  const out = {} as Form16Fields;
+  for (const k of keys) {
+    out[k] = list.reduce((max, f) => Math.max(max, f?.[k] || 0), 0);
+  }
+  return out;
+}
+
+export async function extractForm16(
+  file: File,
+  password?: string,
+): Promise<Form16Fields> {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (password) fd.append("password", password);
+  const headers: Record<string, string> = {};
+  const csrf = readCookie("lp_csrf");
+  if (csrf) headers["X-CSRF-Token"] = csrf;
+  const res = await fetch(`${BASE}/tax/form16/extract`, {
+    method: "POST",
+    body: fd,
+    credentials: "include",
+    headers,
+  });
+  const text = await res.text();
+  const payload = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    throw new ApiError(res.status, payload?.detail || `Couldn't read Form 16 (${res.status})`);
+  }
+  return payload.fields as Form16Fields;
+}
+
 export function requestOtp(phone: string, first_name?: string) {
   return api<{ ok: true; phone: string; expires_in_minutes: number }>(
     "/auth/request-otp",

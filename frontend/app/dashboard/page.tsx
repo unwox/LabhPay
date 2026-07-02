@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/Logo";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CategoryDonut } from "@/components/dashboard/CategoryDonut";
 import { MonthlyTrend } from "@/components/dashboard/MonthlyTrend";
@@ -21,14 +20,9 @@ import {
   InsightsGrid,
   SuspiciousPanel,
   SpendingProfile,
-  BeginnerToggle,
 } from "@/components/dashboard/Insights";
 import { Collapsible } from "@/components/dashboard/Collapsible";
-import {
-  FinancialSnapshot,
-  PriorityActions,
-  rankActions,
-} from "@/components/dashboard/Overview";
+import { MoneyLeakFinder } from "@/components/leaks/MoneyLeakFinder";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import { ChatDrawer } from "@/components/assistant/ChatDrawer";
 import { ExportCenter } from "@/components/exports/ExportCenter";
@@ -42,8 +36,6 @@ import {
   ApiError,
 } from "@/lib/api";
 
-const TOP_ACTIONS = 3;
-
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
@@ -51,8 +43,8 @@ export default function DashboardPage() {
   const [intel, setIntel] = React.useState<IntelligenceSummary | null>(null);
   const [busy, setBusy] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [beginner, setBeginner] = React.useState(false);
   const [uploadOpen, setUploadOpen] = React.useState(false);
+  const detailRef = React.useRef<HTMLDivElement | null>(null);
 
   // Open the upload modal directly when arrived via ?upload=1 (e.g. a landing
   // CTA). Read from the URL on the client to avoid a Suspense boundary.
@@ -108,17 +100,11 @@ export default function DashboardPage() {
   }
 
   const empty = summary && summary.txn_count === 0;
-  const firstName =
-    user.display_name?.split(" ")[0] ||
-    user.email?.split("@")[0] ||
-    "there";
+  const scrollToDetail = () =>
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  // Ranked actions (insights + suspicious), top few up front.
-  const actions = intel ? rankActions(intel.insights, intel.suspicious) : [];
-  const topActions = actions.slice(0, TOP_ACTIONS);
   const moreInsights = intel ? intel.insights : [];
   const suspicious = intel ? intel.suspicious : [];
-
   const topCat = summary?.by_category?.[0];
   const subsMonthly =
     summary?.recurring?.reduce((a, r) => a + r.monthly_amount, 0) ?? 0;
@@ -130,7 +116,16 @@ export default function DashboardPage() {
         <Link href="/" aria-label="LabhPay home">
           <Logo size="md" />
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
+          <Link href="/tax" className="hidden md:inline">
+            <Button variant="ghost" size="sm">Tax</Button>
+          </Link>
+          <Link href="/calculators" className="hidden md:inline">
+            <Button variant="ghost" size="sm">Calculators</Button>
+          </Link>
+          <Link href="/blog" className="hidden md:inline">
+            <Button variant="ghost" size="sm">Guides</Button>
+          </Link>
           {user?.is_admin ? (
             <Link href="/admin">
               <Button variant="ghost" size="sm">
@@ -158,59 +153,31 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <section className="px-[var(--site-gutter)] py-8 md:py-10 max-w-site mx-auto space-y-6">
-        <div>
-          <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-            Your money, at a glance
-          </p>
-          <h1 className="mt-3 font-display text-display-sm md:text-4xl text-ink">
-            Hi {titleCase(firstName)}.{" "}
-            <span className="text-ink-soft">Here&rsquo;s what matters.</span>
-          </h1>
-        </div>
-
+      <section className="px-[var(--site-gutter)] py-10 md:py-16 max-w-3xl mx-auto">
         {busy ? (
-          <Card elevation="md" className="p-8 text-center">
-            <p className="text-ink-muted">Loading your dashboard…</p>
-          </Card>
+          <div className="py-20 text-center">
+            <p className="text-ink-muted">Reading your statement…</p>
+          </div>
         ) : error ? (
-          <Card elevation="md" className="p-8">
-            <p className="font-display text-xl text-ink">Couldn&rsquo;t load.</p>
+          <div className="py-16">
+            <p className="font-display text-2xl text-ink">Couldn&rsquo;t load.</p>
             <p className="mt-2 text-ink-soft">{error}</p>
-          </Card>
+          </div>
         ) : empty ? (
           <EmptyState onUpload={() => setUploadOpen(true)} />
         ) : summary ? (
           <>
-            {/* 1 · Decision layer */}
-            <FinancialSnapshot summary={summary} />
+            {/* The answer: where your money is leaking */}
+            <MoneyLeakFinder
+              summary={summary}
+              intel={intel}
+              onSeeDetails={scrollToDetail}
+            />
 
-            {/* 2 · Needs your attention */}
-            <div className="pt-2">
-              <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
-                <div>
-                  <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                    Needs your attention
-                  </p>
-                  <h2 className="mt-1 font-display text-2xl text-ink">
-                    {topActions.length
-                      ? `Top ${topActions.length} ${
-                          topActions.length === 1 ? "thing" : "things"
-                        } to act on`
-                      : "Nothing urgent"}
-                  </h2>
-                </div>
-                {intel ? (
-                  <BeginnerToggle value={beginner} onChange={setBeginner} />
-                ) : null}
-              </div>
-              <PriorityActions cards={topActions} beginner={beginner} />
-            </div>
-
-            {/* 3 · Progressive disclosure — explore on demand */}
-            <div className="space-y-3 pt-2">
-              <p className="text-[11px] uppercase tracking-eyebrow text-ink-muted">
-                Explore further
+            {/* Quiet, progressive detail */}
+            <div ref={detailRef} className="mt-20 pt-10 border-t border-ink/10 space-y-3">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-ink-muted">
+                Full breakdown
               </p>
 
               <Collapsible
@@ -284,9 +251,9 @@ export default function DashboardPage() {
                   }
                 >
                   <div className="space-y-5">
-                    <InsightsGrid data={moreInsights} beginner={beginner} />
+                    <InsightsGrid data={moreInsights} beginner={false} />
                     {suspicious.length ? (
-                      <SuspiciousPanel data={suspicious} beginner={beginner} />
+                      <SuspiciousPanel data={suspicious} beginner={false} />
                     ) : null}
                   </div>
                 </Collapsible>

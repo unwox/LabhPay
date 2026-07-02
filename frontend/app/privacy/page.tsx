@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Privacy",
+  title: "Privacy Promise — Your Statements Are Auto-Deleted",
   description:
-    "LabhPay processes your statements in memory, encrypts them with a session key, and auto-deletes them after your session ends.",
+    "How LabhPay keeps your credit card statements private: processed in memory, encrypted with a session key, card number masked, and auto-deleted after your session. No training, no resale.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

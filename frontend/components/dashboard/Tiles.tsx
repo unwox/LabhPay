@@ -9,6 +9,11 @@ import {
   CreditCard,
   TrendingUp,
   ChevronRight,
+  FileSearch,
+  Calculator,
+  BookOpen,
+  ArrowRight,
+  type LucideIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { inr, pct, titleCase, fmtDate } from "@/lib/format";
@@ -333,34 +338,100 @@ function Header({
 
 export function EmptyState({ onUpload }: { onUpload?: () => void }) {
   return (
-    <Card elevation="lg" className="p-8 md:p-12 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent-mist text-accent-ink mx-auto">
-        <TrendingUp size={20} />
-      </span>
-      <h2 className="mt-5 font-display text-display-sm text-ink">
-        Upload your first statement.
-      </h2>
-      <p className="mt-3 text-ink-soft max-w-prose mx-auto">
-        Once we read your PDF, this page becomes your calm view of every rupee
-        — category breakdown, recurring subscriptions, hidden charges,
-        utilization and more.
-      </p>
-      {onUpload ? (
-        <button
-          type="button"
+    <div>
+      <div className="max-w-2xl">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-ink-muted">
+          Welcome to LabhPay
+        </p>
+        <h2 className="mt-3 font-display text-display-sm md:text-4xl text-ink">
+          What would you like to do?
+        </h2>
+        <p className="mt-3 text-ink-soft text-lg">
+          Your private money co-pilot for India. Pick where to start — everything
+          here is processed securely and auto-deleted after your session.
+        </p>
+      </div>
+
+      <div className="mt-8 grid sm:grid-cols-2 gap-4 md:gap-5">
+        <HubCard
+          icon={FileSearch}
+          badge="Find money leaks"
+          title="Analyze a statement"
+          body="Upload a credit card or bank statement to spot interest, hidden fees, forgotten subscriptions and where your money went."
           onClick={onUpload}
-          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline underline-offset-4"
-        >
-          Upload a statement <ChevronRight size={14} />
-        </button>
-      ) : (
-        <Link
-          href="/upload"
-          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline underline-offset-4"
-        >
-          Go to upload <ChevronRight size={14} />
-        </Link>
-      )}
-    </Card>
+          href="/dashboard?upload=1"
+          cta="Upload a statement"
+        />
+        <HubCard
+          icon={Receipt}
+          badge="Form 16 & taxes"
+          title="Tax Toolkit"
+          body="Upload your Form 16, payslip and 26AS. Compare old vs new regime, estimate your refund, and get an ITR-ready summary."
+          href="/tax"
+          cta="Open Tax Toolkit"
+        />
+        <HubCard
+          icon={Calculator}
+          badge="Free tools"
+          title="Calculators"
+          body="Income tax (old vs new), home & car loan EMI, mutual fund SIP returns, and HRA exemption — instant, no sign-up."
+          href="/calculators"
+          cta="Open calculators"
+        />
+        <HubCard
+          icon={BookOpen}
+          badge="Guides"
+          title="Money & card guides"
+          body="How to read your bank statement, understand charges, choose the right regime, and make sense of your finances."
+          href="/blog"
+          cta="Read the guides"
+        />
+      </div>
+    </div>
   );
+}
+
+function HubCard({
+  icon: Icon,
+  badge,
+  title,
+  body,
+  href,
+  onClick,
+  cta,
+}: {
+  icon: LucideIcon;
+  badge: string;
+  title: string;
+  body: string;
+  href: string;
+  onClick?: () => void;
+  cta: string;
+}) {
+  const inner = (
+    <div className="h-full rounded-3xl bg-paper-card shadow-card-sm p-6 md:p-7 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-card-xl">
+      <div className="flex items-center justify-between">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-accent-mist text-accent-ink">
+          <Icon size={20} strokeWidth={1.75} />
+        </span>
+        <span className="text-[10px] uppercase tracking-eyebrow text-ink-muted">
+          {badge}
+        </span>
+      </div>
+      <p className="mt-4 font-display text-xl text-ink">{title}</p>
+      <p className="mt-1.5 text-[15px] text-ink-soft leading-relaxed flex-1">{body}</p>
+      <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink">
+        {cta} <ArrowRight size={14} />
+      </span>
+    </div>
+  );
+  // The statement card opens the in-place upload modal; the rest navigate.
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="text-left">
+        {inner}
+      </button>
+    );
+  }
+  return <Link href={href}>{inner}</Link>;
 }

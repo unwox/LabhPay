@@ -77,13 +77,21 @@ export function ConsentGate() {
           <span className="text-[14px] text-ink leading-relaxed">
             I have read and agree to LabhPay&rsquo;s{" "}
             <Link
-              href="/privacy"
+              href="/privacy-policy"
               target="_blank"
               className="underline underline-offset-4 text-accent-ink"
             >
-              Privacy Promise
+              Privacy Policy
             </Link>{" "}
-            and understand that LabhPay does not provide financial advice.
+            and{" "}
+            <Link
+              href="/terms"
+              target="_blank"
+              className="underline underline-offset-4 text-accent-ink"
+            >
+              Terms
+            </Link>
+            , and understand that LabhPay does not provide financial advice.
           </span>
         </label>
 

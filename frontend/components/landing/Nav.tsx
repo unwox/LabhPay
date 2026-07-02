@@ -11,6 +11,24 @@ export function Nav() {
         </Link>
         <nav className="flex items-center gap-2 md:gap-4">
           <Link
+            href="/tax"
+            className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors"
+          >
+            Tax
+          </Link>
+          <Link
+            href="/calculators"
+            className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors"
+          >
+            Calculators
+          </Link>
+          <Link
+            href="/blog"
+            className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors"
+          >
+            Guides
+          </Link>
+          <Link
             href="/privacy"
             className="hidden md:inline text-sm text-ink-soft hover:text-ink transition-colors"
           >

@@ -60,6 +60,31 @@ _TXN_LINE = re.compile(
 
 _CARD_LAST4 = re.compile(r"\b(?:\d[\s-]?){12,15}\d{4}\b")
 
+# Masked-PAN pattern used by HDFC, ICICI, and Amex statements
+# e.g. "485498XXXXXX1566", "5546-XX-XX-XX-3412". The mask uses X/x (and
+# sometimes '*') for the middle 4-12 digits; the LAST four digits are
+# always shown in clear so we can identify the card to the user.
+_MASKED_CARD = re.compile(
+    r"\b\d{4,6}[\s-]?[Xx*]{2,12}[\s-]?\d{4}\b"
+)
+
+# Modern HDFC / Axis statements render the ₹ glyph as a leading 'C' or 'D'
+# because the embedded font's rupee glyph maps to an ASCII letter. We strip
+# that prefix off amount tokens before downstream regex matches it. We are
+# conservative: only strip when followed by a number-with-decimals so we
+# never touch legitimate descriptions that happen to start with the letter.
+_RUPEE_GLYPH_PREFIX = re.compile(
+    r"(?<![A-Za-z0-9])(?:C|₹|Rs\.?)\s?(?=[\d,]*\d\.\d{2}\b)",
+    re.IGNORECASE,
+)
+
+
+def normalize_currency_glyph(text: str) -> str:
+    """Strip the ₹/Rs/'C'-as-rupee prefix that appears before amounts."""
+    if not text:
+        return text
+    return _RUPEE_GLYPH_PREFIX.sub("", text)
+
 _KEY_FIELD_PATTERNS: dict[str, re.Pattern[str]] = {
     "total_outstanding": re.compile(
         r"(?:Total\s+(?:Outstanding|Amount\s+Due|Due)|Statement\s+Balance)[^A-Za-z\n]{0,30}?\n?[^A-Za-z\n]{0,30}?"
@@ -122,6 +147,11 @@ def parse_date(s: str) -> Optional[date]:
 
 
 def find_card_last4(text: str) -> Optional[str]:
+    # Masked PANs (e.g. 485498XXXXXX1566) are tried first because they're
+    # the format banks actually print on modern statements.
+    m = _MASKED_CARD.search(text)
+    if m:
+        return m.group(0)[-4:]
     m = _CARD_LAST4.search(text)
     if not m:
         return None
@@ -184,6 +214,102 @@ def iter_transaction_lines(text: str) -> Iterable[Transaction]:
         )
 
 
+# Modern HDFC / Axis transaction blocks: date+time on one line, description
+# on the following 1-3 lines, then a standalone amount line with the
+# rupee glyph 'C' prefix. We walk the line list as a state machine.
+_TXN_DATETIME = re.compile(
+    r"^\s*(\d{1,2}/\d{1,2}/\d{2,4})\s*(?:\|\s*\d{1,2}:\d{2})?\s*$"
+)
+_STANDALONE_AMOUNT = re.compile(
+    r"^\s*([\d,]+\.\d{2})\s*(Cr|CR|cr|Dr|DR|dr)?\s*$"
+)
+_SKIP_DESC = re.compile(
+    r"^(domestic transactions|international transactions|"
+    r"transaction description|rewards|amount|date(?:\s*&\s*time)?|pi|"
+    r"page\s*\d+|continued)$",
+    re.IGNORECASE,
+)
+
+
+def iter_multiline_transactions(text: str) -> Iterable[Transaction]:
+    """
+    Modern-layout extractor for statements where each transaction spans
+    several lines (date+time, description, optional second description
+    line, amount). Tolerates separator artifacts like a lone 'l'.
+    """
+    if not text:
+        return
+    norm = normalize_currency_glyph(text)
+    lines = [ln.rstrip() for ln in norm.split("\n")]
+    n = len(lines)
+    i = 0
+    while i < n:
+        m = _TXN_DATETIME.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        txn_date = parse_date(m.group(1))
+        if not txn_date:
+            i += 1
+            continue
+        # Walk forward collecting description until we hit a standalone
+        # amount, another date line, or run out of room.
+        desc_parts: list[str] = []
+        amount = None
+        flag = ""
+        j = i + 1
+        max_lookahead = 8
+        while j < n and (j - i) <= max_lookahead:
+            raw = lines[j]
+            stripped = raw.strip()
+            if not stripped or stripped == "l" or stripped == "|":
+                j += 1
+                continue
+            if _SKIP_DESC.match(stripped):
+                j += 1
+                continue
+            am = _STANDALONE_AMOUNT.match(stripped)
+            if am:
+                amount = parse_amount(am.group(1))
+                flag = (am.group(2) or "").lower()
+                j += 1
+                break
+            # Next transaction started without an amount for this one.
+            if _TXN_DATETIME.match(raw):
+                break
+            desc_parts.append(stripped)
+            j += 1
+
+        if amount is None or not desc_parts:
+            i = max(j, i + 1)
+            continue
+
+        desc = re.sub(r"\s+", " ", " ".join(desc_parts)).strip()
+        # Throw out the row if our description is just header gunk.
+        if _SKIP_DESC.match(desc):
+            i = j
+            continue
+        is_debit = flag not in ("cr", "c")
+        is_emi = bool(_EMI_DESC_RE.search(desc))
+        h = hashlib.sha1(
+            f"{txn_date.isoformat()}|{desc}|{amount}".encode(),
+            usedforsecurity=False,
+        ).hexdigest()[:16]
+        yield Transaction(
+            id=h,
+            txn_date=txn_date,
+            merchant_raw=desc[:200],
+            merchant_norm=desc.title()[:200],
+            amount=amount,
+            is_debit=is_debit,
+            is_emi=is_emi,
+            category=Category.OTHER,
+            extraction_confidence=0.75,
+            category_confidence=0.0,
+        )
+        i = j
+
+
 def build_meta(
     *,
     bank_id: str,
@@ -193,18 +319,21 @@ def build_meta(
     ocr_used: bool = False,
     detection_confidence: float = 0.0,
 ) -> StatementMeta:
+    # Strip the 'C'/'₹'/'Rs.' prefix that sits in front of amounts on
+    # modern HDFC / Axis statements so our headline-field regexes work.
+    norm_text = normalize_currency_glyph(text)
     return StatementMeta(
         bank_id=bank_id,
         bank_display=bank_display,
-        card_last4=find_card_last4(text),
-        due_date=find_due_date(text),
-        total_outstanding=find_field_amount(text, "total_outstanding"),
-        minimum_due=find_field_amount(text, "minimum_due"),
-        available_limit=find_field_amount(text, "available_limit"),
-        finance_charges=find_field_amount(text, "finance_charges"),
-        gst_on_charges=find_field_amount(text, "gst_on_charges"),
-        late_fee_charges=find_field_amount(text, "late_fee_charges"),
-        overlimit_charges=find_field_amount(text, "overlimit_charges"),
+        card_last4=find_card_last4(norm_text),
+        due_date=find_due_date(norm_text),
+        total_outstanding=find_field_amount(norm_text, "total_outstanding"),
+        minimum_due=find_field_amount(norm_text, "minimum_due"),
+        available_limit=find_field_amount(norm_text, "available_limit"),
+        finance_charges=find_field_amount(norm_text, "finance_charges"),
+        gst_on_charges=find_field_amount(norm_text, "gst_on_charges"),
+        late_fee_charges=find_field_amount(norm_text, "late_fee_charges"),
+        overlimit_charges=find_field_amount(norm_text, "overlimit_charges"),
         detection_confidence=detection_confidence,
         ocr_used=ocr_used,
         pages=pages,
@@ -242,5 +371,16 @@ class BaseRegexParser:
             pages=text.count("\f") + 1,
             detection_confidence=self.fingerprint(text),
         )
+        # Try the legacy single-line table layout first (cheap regex).
         txns = list(iter_transaction_lines(text))
+        # Fall back to the modern multi-line layout used by newer HDFC /
+        # Axis statements. We use it both as a fallback AND as an
+        # augmentation when single-line found only a handful — modern
+        # statements often mix the two layouts on different pages.
+        multi = list(iter_multiline_transactions(text))
+        if len(multi) > len(txns):
+            # Multi-line is winning — trust it. De-dup against single-line
+            # by id so we don't double-count.
+            seen_ids = {t.id for t in multi}
+            txns = multi + [t for t in txns if t.id not in seen_ids]
         return Statement(meta=meta, transactions=txns)

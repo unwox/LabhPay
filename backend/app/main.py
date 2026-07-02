@@ -14,6 +14,7 @@ from app.api.ai import router as ai_router
 from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
 from app.api.consent import router as consent_router
+from app.api.tax import router as tax_router
 from app.api.dashboard import router as dashboard_router
 from app.api.exports import router as exports_router
 from app.api.health import router as health_router
@@ -59,6 +60,7 @@ app.include_router(exports_router)
 app.include_router(ai_router)
 app.include_router(admin_router)
 app.include_router(consent_router)
+app.include_router(tax_router)
 
 
 @app.get("/")

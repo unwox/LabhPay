@@ -143,6 +143,40 @@ register(Prompt(
 ))
 
 register(Prompt(
+    name="form16_extract",
+    version="v0.1",
+    tier="fast",
+    system=_BRAND_GUARDRAILS + (
+        " You extract structured tax figures from the text of ANY Indian salary "
+        "tax document — it may be a Form 16 (Part A or B), a salary slip / "
+        "payslip, Form 12BA (perquisites), Form 26AS, or an AIS. Extract only "
+        "what is present in THIS document; use 0 for anything not shown. Return "
+        "STRICT JSON with exactly these numeric keys (rupees, integers): "
+        "{\"gross_salary\", \"hra_exempt\", \"lta_exempt\", \"standard_deduction\", "
+        "\"ded_80c\", \"ded_80d\", \"nps_80ccd1b\", \"nps_employer_80ccd2\", "
+        "\"home_loan_interest\", \"other_deductions\", \"other_income\", "
+        "\"capital_gains\", \"tds\"}. "
+        "Rules: gross_salary = gross salary / salary u/s 17(1) (include "
+        "perquisites if shown in the gross). hra_exempt = HRA exemption u/s "
+        "10(13A). lta_exempt = Leave Travel Allowance/Concession exemption u/s "
+        "10(5). ded_80c = total Chapter VI-A 80C/80CCC/80CCD(1) "
+        "(cap 150000). nps_80ccd1b = the employee's extra NPS deduction under "
+        "80CCD(1B) (cap 50000). nps_employer_80ccd2 = the EMPLOYER's NPS "
+        "contribution deduction under 80CCD(2), which is allowed even in the new "
+        "regime; if a Chapter VI-A deduction is shown with 80C = 0 (typical "
+        "new-regime salary), that amount is usually this 80CCD(2) figure. "
+        "home_loan_interest = interest on housing loan u/s 24(b). other_income = "
+        "non-salary income such as interest from savings/FD or dividends (common "
+        "in 26AS/AIS). capital_gains = total gains from selling shares, mutual "
+        "funds, property or crypto (from AIS/broker statements). tds = total tax "
+        "deducted at source shown in THIS document. Do NOT include name, PAN, "
+        "employer, or any identifier. Output ONLY the JSON object, no prose, no "
+        "code fences."
+    ),
+    user_template="Form 16 text:\n{form16_text}",
+))
+
+register(Prompt(
     name="resolution_email",
     version="v0.1",
     tier="fast",
